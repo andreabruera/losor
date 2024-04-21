@@ -9,13 +9,17 @@ from scipy import stats
 tmax_p_vals = dict()
 p_vals = dict()
 ### reading originals
-for f in os.listdir('real'):
+real_f = os.path.join('data', 'real')
+assert os.path.exists(real_f)
+perm_f = os.path.join('data', 'permutation')
+assert os.path.exists(perm_f)
+for f in os.listdir(real_f):
     if 'tsv' not in f:
         continue
     case = f.split('.')[0]
     real = dict()
     perm = dict()
-    with open(os.path.join('real', f)) as i:
+    with open(os.path.join(real_f, f)) as i:
         for l_i, l in enumerate(i):
             if l_i == 0:
                 continue
@@ -25,7 +29,7 @@ for f in os.listdir('real'):
                 real[pred[0]] = float(pred[1])
     ### reading perm
     for _ in range(1000):
-        with open(os.path.join('permutation', f.replace('.tsv', '_{}.tsv'.format(_)))) as i:
+        with open(os.path.join(perm_f, f.replace('.tsv', '_{}.tsv'.format(_)))) as i:
             for l_i, l in enumerate(i):
                 if l_i == 0:
                     continue
@@ -67,8 +71,10 @@ for f in os.listdir('real'):
 keyz = list(p_vals.keys())
 fdr_corr_p_vals = mne.stats.fdr_correction([p_vals[k] for k in keyz])[1]
 
+results = 'results'
+os.makedirs(results, exist_ok=True)
 ### writing to file
-with open('p-vals.tsv', 'w') as o:
+with open(os.path.join(results, 'p-vals.tsv'), 'w') as o:
     o.write('target\tpredictor\traw_p\tfdr_p\tt-max_p\n')
     for k, corr_p in zip(keyz, fdr_corr_p_vals):
         o.write('{}\t{}\t{}\t{}\t{}\n'.format(k[0], k[1], p_vals[k], corr_p, tmax_p_vals[k]))

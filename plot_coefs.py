@@ -8,7 +8,7 @@ from matplotlib import pyplot
 
 ### reading p-values
 p_vals = dict()
-with open('p-vals.tsv') as i:
+with open(os.path.join('results', 'p-vals.tsv')) as i:
     for l_i, l in enumerate(i):
         if l_i == 0:
             continue
@@ -18,6 +18,27 @@ with open('p-vals.tsv') as i:
 
 ### reading results
 predictors = set()
+results = dict()
+real_f = os.path.join('data', 'real')
+assert os.path.exists(real_f)
+for f in os.listdir(real_f):
+    if 'tsv' not in f:
+        continue
+    case = f.split('.')[0]
+    full_case = 'ability {}'.format(case) if len(case)==2 else 'improvement {}'.format(case.replace('_', '-'))
+    results[full_case] = dict()
+    real = dict()
+    perm = dict()
+    with open(os.path.join(real_f, f)) as i:
+        for l_i, l in enumerate(i):
+            if l_i == 0:
+                continue
+            line = l.strip().split('\t')[4:]
+            for pred in line:
+                pred = [w.strip() for w in re.sub(r"\(|\)|'", '', pred).split(',')]
+                results[full_case][pred[0]] = float(pred[1])
+                predictors.add(pred[0])
+'''
 with open('sorted_coefs.tsv') as i:
     for l_i, l in enumerate(i):
         line = [w.strip() for w in l.split('\t')]
@@ -36,6 +57,7 @@ with open('sorted_coefs.tsv') as i:
             assert len(split_cell) == 2
             predictors.add(split_cell[0])
             results[header[cell_i]][split_cell[0]] = float(split_cell[1])
+'''
 
 #### normalizing in the range 0, 1
 #results = {k : {k_two : v_two/max(v.values()) for k_two, v_two in v.items()} for k, v in results.items()}
@@ -52,10 +74,6 @@ for folder in [
                'all_predictors',
                'significant_predictors',
                ]:
-    os.makedirs(
-                     folder,
-                     exist_ok=True,
-                     )
     for t_label, time_sorted in [
             (
               'ability', [
@@ -81,6 +99,11 @@ for folder in [
               )
             ]:
 
+        full_folder = os.path.join('plots', folder, t_label)
+        os.makedirs(
+                    full_folder,
+                    exist_ok=True,
+                     )
         xs = list(range(len(time_sorted)))
         for cat, labels in predictors.items():
             fig, ax = pyplot.subplots(constrained_layout=True, figsize=(20, 10))
@@ -272,7 +295,7 @@ for folder in [
                           fontsize=25,
                           )
             pyplot.savefig(
-                           os.path.join(folder, '{}_{}_{}.jpg'.format(cat, t_label, folder)),
+                           os.path.join(full_folder, '{}_{}_{}.jpg'.format(cat, t_label, folder)),
                            dpi=300,
                            )
             pyplot.clf()
