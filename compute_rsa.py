@@ -380,7 +380,7 @@ def run_rsa(
         ### running bootstraps with removal...
         for _ in range(randoms):
             ### seven items with replacement
-            alternatives = len([labels[predictor_name]])
+            alternatives = len(labels[predictor_name])
             if alternatives < 2:
                 continue
             rand_idxs = random.sample(
@@ -405,6 +405,7 @@ def run_rsa(
                                          boot_predictor_sims,
                                          target_sims,
                                          )
+            #print(boot_corr)
             results['removal_bootstrap'].append('+'.join(present_labels)+':{}'.format(boot_corr))
     assert len(results['bootstrap']) == all_boots
     assert len(results['random']) == perms
