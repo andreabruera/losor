@@ -407,6 +407,8 @@ def run_rsa(
                                          )
             #print(boot_corr)
             results['removal_bootstrap'].append('+'.join(present_labels)+':{}'.format(boot_corr))
+    if alternatives >= 2:
+        assert len(results['removal_bootstrap']) == perms
     assert len(results['bootstrap']) == all_boots
     assert len(results['random']) == perms
     ### computing and writing p-value
@@ -514,16 +516,16 @@ labels['connectivity T2'] = [k for k in full_data.keys() if \
 targets = [v for v in abilities+improvements]
 ### predictors
 predictors = [
-              'age',
+              #'age',
               'T1',
-              'T2',
-              'T3',
-              'abilities',
-              'lesions',
-              'activations T1',
-              'activations T2',
-              'connectivity T1',
-              'connectivity T2',
+              #'T2',
+              #'T3',
+              #'abilities',
+              #'lesions',
+              #'activations T1',
+              #'activations T2',
+              #'connectivity T1',
+              #'connectivity T2',
               ]
 
 ### various setups...
@@ -571,17 +573,24 @@ for predictor_name in predictors:
                     avg_rand = numpy.nanmean(results['random'])
                     print([key, avg, avg_rand, results['raw_permutation_p']])
                     all_results[key] = results
-with open('zz_results.tsv', 'w') as o:
-    o.write('predictor_name\t')
-    o.write('target_name\t')
-    o.write('metric\t')
-    o.write('confound_variable\t')
-    o.write('confound_method\t')
-    o.write('measure\n')
-    for k, v in all_results.items():
+for k, v in all_results.items():
+    pred = k[0]
+    targ = k[1]
+    metric = k[2]
+    confound_var = k[3]
+    confound_meth = k[4]
+    ### creating the folder
+    out = os.path.join('rsa_results_zz', metric, confound_meth, confound_var)
+    os.makedirs(out, exist_ok=True)
+    with open(os.path.join(out, '{}_{}_{}_results.tsv'.format(metric, confound_meth, confound_var)), 'w') as o:
+        o.write('predictor_name\t')
+        o.write('target_name\t')
+        o.write('metric\t')
+        o.write('confound_variable\t')
+        o.write('confound_method\t')
+        o.write('measure\n')
+        o.write('{}\t{}\t{}\t{}\t'.format(pred, targ, metric, confound_var, confound_meth))
         for key, res in v.items():
-            for val in k:
-                o.write('{}\t'.format(val))
             o.write('{}\t'.format(key))
             for r in res:
                 o.write('{}\t'.format(r))
