@@ -45,6 +45,36 @@ all_colors = {
                    ],
           }
 
+#with open('zz_results.tsv') as i:
+results = dict()
+for root, direc, fz in os.walk('rsa_results_zz'):
+    for f in fz:
+        #print(f)
+        if 'tsv' not in f:
+            continue
+        with open(os.path.join(root, f)) as i:
+            for l_i, l in enumerate(i):
+                line = l.strip().split('\t')
+                if l_i == 0:
+                    header = [h for h in line]
+                    #print(header)
+                    for h in header+['values']:
+                        if h not in results.keys():
+                            results[h] = list()
+                    continue
+                details = [line[h_i] for h_i, h in enumerate(header)]
+                #print(details[header.index('predictor_name')])
+                #print(details)
+                for h, d in zip(header, details):
+                    results[h].append(d)
+                ### values
+                vals = line[len(header):]
+                if 'removal_bootstrap' not in line:
+                    vals = numpy.array(vals, dtype=numpy.float64)
+                else:
+                    vals = {tuple(v.split(':')[0].split('+')) : float(v.split(':')[1]) for v in vals}
+                results['values'].append(vals)
+'''
 with open('zz_results.tsv') as i:
     for l_i, l in enumerate(i):
         line = l.strip().split('\t')
@@ -61,6 +91,7 @@ with open('zz_results.tsv') as i:
         else:
             vals = {tuple(v.split(':')[0].split('+')) : float(v.split(':')[1]) for v in vals}
         results['values'].append(vals)
+'''
 n_items = set([len(v) for v in results.values()])
 assert len(n_items) == 1
 n_items = list(n_items)[0]
@@ -82,7 +113,7 @@ for metric in possibilities['metric']:
                     if l_i == 0:
                         continue
                     line = l.strip().split('\t')
-                    if float(line[-1]) < 0.1:
+                    if float(line[-1][:4]) <= 0.1:
                         cases.append((line[0], line[1]))
             ### collecting the data and p_values for correction
             rel_idxs = [i for i in range(n_items) if results['metric'][i]==metric and \
@@ -183,9 +214,9 @@ for metric in possibilities['metric']:
                                               figsize=(20, 10),
                                               )
                         #for x, y in zip(xs, ys):
-                    ax.set_ylim(bottom=-(3+len(ys))*0.013, top=.35)
+                    ax.set_ylim(bottom=-(3+len(ys))*0.013, top=.32)
                     ax.hlines(
-                              y=[0., 0.05, 0.1, 0.15, 0.2, 0.25],
+                              y=[0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
                               xmin=-.4,
                               xmax=len(xs)-.6,
                               alpha=0.2,
@@ -216,9 +247,6 @@ for metric in possibilities['metric']:
                                 fontweight='bold'
                                 )
 
-                    pyplot.yticks(
-                                fontsize=20,
-                                )
                     pyplot.ylabel(ylabel='Spearman rho',
                                   fontsize=23,
                                   )
@@ -255,17 +283,17 @@ for metric in possibilities['metric']:
                                            zorder=3,
                                            )
                     legend_xs = numpy.linspace(len(xs)/2-len(xs)/3, ((len(xs))-1)/2+((len(xs))-1)/3, 3)
-                    ax.scatter(legend_xs[0]-.1, 0.275, marker='s', s=100, color='white', edgecolor='black')
-                    ax.text(s='p<0.05', x=legend_xs[0], y=0.275, fontsize=20, ha='left', va='center')
-                    ax.scatter(legend_xs[1]-.1, 0.275, marker='s', s=100, color='white', edgecolor='black')
-                    ax.scatter(legend_xs[1]-.2, 0.275, marker='s', s=100, color='white', edgecolor='black')
-                    ax.text(s='p<0.005', x=legend_xs[1], y=0.275, fontsize=20, ha='left', va='center')
-                    ax.scatter(legend_xs[2]-.3, 0.275, marker='s', s=100, color='white', edgecolor='black')
-                    ax.scatter(legend_xs[2]-.2, 0.275, marker='s', s=100, color='white', edgecolor='black')
-                    ax.scatter(legend_xs[2]-.1, 0.275, marker='s', s=100, color='white', edgecolor='black')
-                    ax.text(s='p<0.005', x=legend_xs[2], y=0.275, fontsize=20, ha='left', va='center')
+                    ax.scatter(legend_xs[0]-.1, 0.31, marker='s', s=100, color='white', edgecolor='black')
+                    ax.text(s='p<0.05', x=legend_xs[0], y=0.31, fontsize=20, ha='left', va='center')
+                    ax.scatter(legend_xs[1]-.1, 0.31, marker='s', s=100, color='white', edgecolor='black')
+                    ax.scatter(legend_xs[1]-.2, 0.31, marker='s', s=100, color='white', edgecolor='black')
+                    ax.text(s='p<0.005', x=legend_xs[1], y=0.31, fontsize=20, ha='left', va='center')
+                    ax.scatter(legend_xs[2]-.3, 0.31, marker='s', s=100, color='white', edgecolor='black')
+                    ax.scatter(legend_xs[2]-.2, 0.31, marker='s', s=100, color='white', edgecolor='black')
+                    ax.scatter(legend_xs[2]-.1, 0.31, marker='s', s=100, color='white', edgecolor='black')
+                    ax.text(s='p<0.005', x=legend_xs[2], y=0.31, fontsize=20, ha='left', va='center')
                     pyplot.yticks(
-                            ticks=[0, 0.05, 0.1, 0.15, 0.2, 0.25],
+                            ticks=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
                                 fontsize=20,
                                 )
                     marker = 'Ability at' if '_' not in target else 'Improvement between'

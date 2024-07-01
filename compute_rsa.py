@@ -517,7 +517,7 @@ targets = [v for v in abilities+improvements]
 ### predictors
 predictors = [
               #'age',
-              'T1',
+              #'T1',
               #'T2',
               #'T3',
               #'abilities',
@@ -525,14 +525,14 @@ predictors = [
               #'activations T1',
               #'activations T2',
               #'connectivity T1',
-              #'connectivity T2',
+              'connectivity T2',
               ]
 
 ### various setups...
 ### different metrics
 metrics = [
            #'pearson_r',
-           'spearman_r',
+           #'spearman_r',
            #'cosine',
            'euclidean',
            #'manhattan',
@@ -572,7 +572,45 @@ for predictor_name in predictors:
                     avg = numpy.nanmean(results['real'])
                     avg_rand = numpy.nanmean(results['random'])
                     print([key, avg, avg_rand, results['raw_permutation_p']])
-                    all_results[key] = results
+                    target_out_name = target_name.replace('_', '-')
+                    #all_results[key] = results
+                    out = os.path.join(
+                                 'rsa_results_zz',
+                                 metric,
+                                 confound_method,
+                                 confound_variable,
+                                 target_out_name,)
+                    os.makedirs(out, exist_ok=True)
+                    with open(os.path.join(
+                                   out,
+                                   '{}_{}_{}_{}_{}_results.tsv'.format(
+                                       predictor_name,
+                                       target_out_name,
+                                       metric,
+                                       confound_method,
+                                       confound_variable)
+                                   ), 'w') as o:
+                        o.write('predictor_name\t')
+                        o.write('target_name\t')
+                        o.write('metric\t')
+                        o.write('confound_variable\t')
+                        o.write('confound_method\t')
+                        o.write('measure\n')
+                        for k, res in results.items():
+                            o.write('{}\t{}\t{}\t{}\t{}\t'.format(
+                                             predictor_name,
+                                             target_out_name,
+                                             metric,
+                                             confound_variable,
+                                             confound_method,
+                                             )
+                                    )
+                            o.write('{}\t'.format(k))
+                            for r in res:
+                                o.write('{}\t'.format(r))
+                            o.write('\n')
+
+'''
 for k, v in all_results.items():
     pred = k[0]
     targ = k[1]
@@ -589,8 +627,15 @@ for k, v in all_results.items():
         o.write('confound_variable\t')
         o.write('confound_method\t')
         o.write('measure\n')
-        o.write('{}\t{}\t{}\t{}\t'.format(pred, targ, metric, confound_var, confound_meth))
         for key, res in v.items():
+            o.write('{}\t{}\t{}\t{}\t{}\t'.format(
+                                                 pred,
+                                                 targ,
+                                                 metric,
+                                                 confound_var,
+                                                 confound_meth
+                                                 )
+                    )
             o.write('{}\t'.format(key))
             for r in res:
                 o.write('{}\t'.format(r))
@@ -598,7 +643,6 @@ for k, v in all_results.items():
 
 import pdb; pdb.set_trace()
 
-'''
 ### setting variables for metrics plot
 metric_correc = {k : (v-1.)*0.15 for k, v in zip(metrics, range(len(metrics)))}
 list_cols = ['teal', 'goldenrod', 'plum', 'gray', 'orange',]

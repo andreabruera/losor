@@ -16,23 +16,37 @@ for p in font_files:
     font_manager.fontManager.addfont(p)
 matplotlib.rcParams['font.family'] = 'Helvetica LT Std'
 
-with open('zz_results.tsv') as i:
-    for l_i, l in enumerate(i):
-        line = l.strip().split('\t')
-        if 'removal_bootstrap' in line:
+#with open('zz_results.tsv') as i:
+results = dict()
+for root, direc, fz in os.walk('rsa_results_zz'):
+    for f in fz:
+        #print(f)
+        if 'tsv' not in f:
             continue
-        if l_i == 0:
-            header = [h for h in line]
-            results = {h : list() for h in header+['values']}
-            continue
-        for h_i, h in enumerate(header):
-            results[h].append(line[h_i])
-        ### values
-        vals = line[len(header):]
-        #    vals = {tuple(v.split(':')[0].split('+')) : float(v.split(':')[1]) for v in vals}
-        #else:
-        vals = numpy.array(vals, dtype=numpy.float64)
-        results['values'].append(vals)
+        with open(os.path.join(root, f)) as i:
+            for l_i, l in enumerate(i):
+                line = l.strip().split('\t')
+                if 'removal_bootstrap' in line:
+                    continue
+                if l_i == 0:
+                    header = [h for h in line]
+                    #print(header)
+                    for h in header+['values']:
+                        if h not in results.keys():
+                            results[h] = list()
+                    continue
+                details = [line[h_i] for h_i, h in enumerate(header)]
+                #print(details[header.index('predictor_name')])
+                #print(details)
+                for h, d in zip(header, details):
+                    results[h].append(d)
+                ### values
+                vals = line[len(header):]
+                #    vals = {tuple(v.split(':')[0].split('+')) : float(v.split(':')[1]) for v in vals}
+                #else:
+                #print(line)
+                vals = numpy.array(vals, dtype=numpy.float64)
+                results['values'].append(vals)
 n_items = set([len(v) for v in results.values()])
 assert len(n_items) == 1
 n_items = list(n_items)[0]
@@ -42,6 +56,7 @@ colors_tuple = [
                 ('T1', 'yellowgreen'),
                 ('T2', 'pink'),
                 ('T3', 'mediumaquamarine'),
+                #('abilities', 'mediumaquamarine'),
                 ('activations T1', 'khaki'),
                 ('activations T2', 'darkkhaki'),
                 ('connectivity T1', 'paleturquoise'),
@@ -104,7 +119,8 @@ for metric in possibilities['metric']:
                                       )
             for k, v in colors_tuple:
                 ax.bar(0, 0, label=k, color=v)
-            xs_lst = ['T1', 'T2', 'T3', 'T2_T1', 'T3_T2', 'T3_T1']
+            xs_lst = ['T1', 'T2', 'T3', 'T2-T1', 'T3-T2', 'T3-T1']
+            #xs_lst = ['abilities', 'T2-T1', 'T3-T2', 'T3-T1']
             xs = {a : _ for _, a in enumerate(xs_lst)}
             ax.text(
                     x=5.23,
@@ -124,7 +140,7 @@ for metric in possibilities['metric']:
             ax.text(
                     x=5.23,
                     y=0.69,
-                    s='p<0.1',
+                    s='p<=0.1',
                     fontsize=18,
                     )
             ax.scatter(
@@ -183,6 +199,7 @@ for metric in possibilities['metric']:
                         wid = 0.135
                     else:
                         wid = 0.095
+                    #print(target_data[dim].keys())
                     ax.bar(
                            xs[target]+corrections[dim],
                            numpy.average(target_data[dim]['real']),
@@ -204,7 +221,7 @@ for metric in possibilities['metric']:
                             zorder=2.5,
                             )
                     #print(target_data[dim].keys())
-                    if target_data[dim]['corr_p'] < 0.05:
+                    if float(str(target_data[dim]['corr_p'])[:4]) < 0.05:
                         ax.scatter(
                            xs[target]+corrections[dim],
                            0.02,
@@ -214,7 +231,7 @@ for metric in possibilities['metric']:
                             zorder=3.,
                             edgecolors='black'
                            )
-                    elif target_data[dim]['corr_p'] < 0.1:
+                    elif float(str(target_data[dim]['corr_p'])[:4]) <= 0.1:
                         ax.scatter(
                            xs[target]+corrections[dim],
                            0.02,
