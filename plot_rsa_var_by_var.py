@@ -169,56 +169,59 @@ for metric in possibilities['metric']:
                             current_data[target][predictor][ind_k].extend(v)
             ### computing p-values, and correcting them
             raw_ps = list()
-            for c_targ, c_targ_data in current_data.items():
-                for c_pred, c_pred_data in c_targ_data.items():
-                    ind_preds = list(c_pred_data.keys())
-                    assert len(ind_preds) > 2
-                    for c_one_i, c_one in enumerate(ind_preds):
-                        for c_two_i, c_two in enumerate(ind_preds):
-                            if c_two_i <= c_one_i:
-                                continue
-                            data_one = c_pred_data[c_one]
-                            data_two = c_pred_data[c_two]
-                            ### real mean
-                            avg_one = numpy.nanmean(data_one)
-                            avg_two = numpy.nanmean(data_two)
-                            if avg_one >= avg_two:
-                                alternative='greater'
-                            if avg_one < avg_two:
-                                alternative='less'
-                            raw_p = scipy.stats.ttest_ind(data_one, data_two, alternative=alternative).pvalue
-                            '''
-                            ### permuting
-                            full_set = data_one + data_two
-                            if avg_one > avg_two:
-                                real = avg_one-avg_two
-                            else:
-                                real = avg_two-avg_one
-                            fakes = list()
-                            for _ in tqdm(range(1000)):
-                                #fake_one = random.sample(full_set, k=len(data_one))
-                                #fake_two = random.sample(full_set, k=len(data_two))
-                                #fake_two =
-                                fake_one_idxs = random.sample(range(len(full_set)), k=len(data_one))
-                                fake_one = [full_set[i] for i in fake_one_idxs]
-                                fake_two = [full_set[i] for i in range(len(full_set)) if i not in fake_one_idxs]
-                                ### fake mean
-                                avg_fake_one = numpy.nanmean(fake_one)
-                                avg_fake_two = numpy.nanmean(fake_two)
+            with tqdm() as counter:
+                for c_targ, c_targ_data in current_data.items():
+                    for c_pred, c_pred_data in c_targ_data.items():
+                        ind_preds = list(c_pred_data.keys())
+                        assert len(ind_preds) > 2
+                        for c_one_i, c_one in enumerate(ind_preds):
+                            for c_two_i, c_two in enumerate(ind_preds):
+                                if c_two_i <= c_one_i:
+                                    continue
+                                data_one = c_pred_data[c_one]
+                                data_two = c_pred_data[c_two]
+                                ### real mean
+                                avg_one = numpy.nanmean(data_one)
+                                avg_two = numpy.nanmean(data_two)
+                                '''
+                                using t-test
+                                if avg_one >= avg_two:
+                                    alternative='greater'
+                                if avg_one < avg_two:
+                                    alternative='less'
+                                raw_p = scipy.stats.ttest_ind(data_one, data_two, alternative=alternative).pvalue
+                                '''
+                                ### permuting
+                                full_set = data_one + data_two
                                 if avg_one > avg_two:
-                                    fake = avg_fake_one-avg_fake_two
+                                    real = avg_one-avg_two
                                 else:
-                                    fake = avg_fake_two-avg_fake_one
-                                fakes.append(fake)
-                            raw_p = (sum([1 for _ in fakes if _>real])+1)/(len(fakes)+1)
-                            '''
-                            current_data[c_targ][c_pred][tuple(sorted((c_one, c_two)))] = {'raw_permutation_p' : raw_p}
-                            raw_ps.append(((c_targ, c_pred, c_one, c_two), raw_p))
+                                    real = avg_two-avg_one
+                                fakes = list()
+                                for _ in range(1000):
+                                    #fake_one = random.sample(full_set, k=len(data_one))
+                                    #fake_two = random.sample(full_set, k=len(data_two))
+                                    #fake_two =
+                                    fake_one_idxs = random.sample(range(len(full_set)), k=len(data_one))
+                                    fake_one = [full_set[i] for i in fake_one_idxs]
+                                    fake_two = [full_set[i] for i in range(len(full_set)) if i not in fake_one_idxs]
+                                    ### fake mean
+                                    avg_fake_one = numpy.nanmean(fake_one)
+                                    avg_fake_two = numpy.nanmean(fake_two)
+                                    if avg_one > avg_two:
+                                        fake = avg_fake_one-avg_fake_two
+                                    else:
+                                        fake = avg_fake_two-avg_fake_one
+                                    fakes.append(fake)
+                                raw_p = (sum([1 for _ in fakes if _>real])+1)/(len(fakes)+1)
+                                current_data[c_targ][c_pred][tuple(sorted((c_one, c_two)))] = {'raw_permutation_p' : raw_p}
+                                raw_ps.append(((c_targ, c_pred, c_one, c_two), raw_p))
+                                counter.update(1)
             corr_ps = mne.stats.fdr_correction([v[1] for v in raw_ps])[1]
             for kv, p in zip(raw_ps, corr_ps):
                 k = kv[0]
                 if p< 0.05:
-                    print(k)
+                    print([k, p])
                 current_data[k[0]][k[1]][tuple(sorted((k[2], k[3])))]['corr_p'] = p
             for target, t_data in current_data.items():
                 for group, g_data in t_data.items():
