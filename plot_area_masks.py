@@ -9,13 +9,14 @@ from nilearn import datasets, plotting, surface
 
 fsaverage = datasets.fetch_surf_fsaverage()
 dataset = nilearn.datasets.fetch_atlas_harvard_oxford('cort-maxprob-thr25-2mm')
-#dataset =nilearn.datasets.fetch_atlas_aal(version='SPM12')
-#maps_data = nilearn.image.load_img(maps).get_fdata()
-#idxs = [float(v) for v in dataset['indices']]
-#assert len(idxs) == len(labels)
+dataset =nilearn.datasets.fetch_atlas_aal(version='SPM12')
 maps = dataset['maps']
-maps_data = maps.get_fdata()
+maps_data = nilearn.image.load_img(maps).get_fdata()
+idxs = [float(v) for v in dataset['indices']]
 labels = dataset['labels']
+assert len(idxs) == len(labels)
+#maps = dataset['maps']
+#maps_data = maps.get_fdata()
 rel_names = {
              'lesions' : {
                     'ifg' : [
@@ -233,6 +234,7 @@ for k, both_cmap in cmaps.items():
                 del msk
                 ### left
                 relevant_labels = {i : vals[k]['max'] for i, l in enumerate(labels) for k, v in relevant_labels_names.items() if l in v}
+                #relevant_labels = {i : vals[k]['max'] for i, l in zip(idxs, labels) for k, v in relevant_labels_names.items() if l in v}
                 msk = numpy.array([relevant_labels[v] if v in relevant_labels.keys() else 0. for v in maps_data.flatten()]).reshape(maps_data.shape)
                 atl_img = nilearn.image.new_img_like(maps, msk)
                 cmap = both_cmap['left']

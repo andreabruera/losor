@@ -9,7 +9,7 @@ from matplotlib import font_manager, pyplot
 from scipy import stats
 
 # Using Helvetica as a font
-font_folder = 'fonts/'
+font_folder = '../fonts/'
 font_dirs = [font_folder, ]
 font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
 for p in font_files:
@@ -74,7 +74,7 @@ for metric in possibilities['metric']:
             if confound_method != 'raw' and confound_variable == 'none':
                 continue
             ### creating the folder
-            out = os.path.join('rsa_zz', confound_method, confound_variable)
+            out = os.path.join('rsa_zz', confound_method, confound_variable, metric)
             os.makedirs(out, exist_ok=True)
             ### collecting the data and p_values for correction
             rel_idxs = [i for i in range(n_items) if results['metric'][i]==metric and \
@@ -87,6 +87,8 @@ for metric in possibilities['metric']:
             raw_ps = dict()
             for i in rel_idxs:
                 predictor = results['predictor_name'][i]
+                if predictor not in colors.keys():
+                    continue
                 target = results['target_name'][i]
                 key = results['measure'][i]
                 #print(key)
@@ -102,6 +104,7 @@ for metric in possibilities['metric']:
                 ### this allows us to avoid double counts
                 if key == 'raw_permutation_p':
                     raw_ps[tuple(sorted((predictor, target)))] = vals[0]
+            print(raw_ps.keys())
             ### correcting p-values
             ps = [raw_ps[p] for p in sorted(raw_ps.keys())]
             corr_ps = mne.stats.fdr_correction(ps)[1]
@@ -123,10 +126,10 @@ for metric in possibilities['metric']:
             #xs_lst = ['abilities', 'T2-T1', 'T3-T2', 'T3-T1']
             xs = {a : _ for _, a in enumerate(xs_lst)}
             ax.text(
-                    x=5.23,
+                    x=5.21,
                     y=0.73,
                     s='p<0.05',
-                    fontsize=18,
+                    fontsize=20,
                     )
             ax.scatter(
                5.075,
@@ -138,11 +141,45 @@ for metric in possibilities['metric']:
                 edgecolors='black'
                )
             ax.text(
-                    x=5.23,
+                    x=5.21,
                     y=0.69,
                     s='p<=0.1',
-                    fontsize=18,
+                    fontsize=20,
                     )
+            ax.text(
+                    x=1,
+                    y=0.72,
+                    s='Language ability',
+                    fontsize=25,
+                    ha='center',
+                    va='center',
+                    fontweight='bold'
+                    )
+            ax.text(
+                    x=4,
+                    y=0.72,
+                    s='Language improvement',
+                    fontsize=25,
+                    ha='center',
+                    va='center',
+                    fontweight='bold'
+                    )
+            pyplot.xticks(
+                          ticks = range(len(xs.keys())),
+                          labels = [x.replace('_', '-') for x in xs_lst],
+                          fontsize=23,
+                          )
+            for _ in range(len(xs_lst)):
+                ax.text(
+                        x=_,
+                        y=-0.05,
+                        s=xs_lst[_].replace('_', '-'),
+                        fontsize=28,
+                        ha='center',
+                        va='center',
+                        fontweight='bold'
+                        )
+
             ax.scatter(
                5.075,
                0.695,
@@ -153,7 +190,7 @@ for metric in possibilities['metric']:
                 edgecolors='black'
                )
             ax.hlines(
-                      y=[_*0.1 for _ in range(-1, 8)],
+                      y=[_*0.1 for _ in range(8)],
                       xmin=-.45,
                       xmax=len(xs)-.45,
                       alpha=0.2,
@@ -215,7 +252,7 @@ for metric in possibilities['metric']:
                     ax.scatter(
                             [xs[target]+corrections[dim]+(random.choice(range(-30,30))*0.001) for _ in plot_boot],
                             plot_boot,
-                            alpha=0.25,
+                            alpha=0.1,
                             edgecolors=colors[dim],
                             color='white',
                             zorder=2.5,
@@ -241,25 +278,26 @@ for metric in possibilities['metric']:
                             zorder=3.,
                             edgecolors='black'
                            )
-            pyplot.xticks(
-                          ticks = range(len(xs.keys())),
-                          labels = [x.replace('_', '-') for x in xs_lst],
-                          fontsize=23,
-                          )
             pyplot.legend(
-                         fontsize=18,
+                         fontsize=21,
                          ncols=9,
                          loc=9,
+                         borderpad=0.2,
+                         columnspacing=1.,
+                         handletextpad=0.2,
                          )
-            ax.set_ylim(top=0.82, bottom=-.1)
+            ax.set_ylim(top=0.82, bottom=-.12)
+            ax.spines[['right', 'bottom', 'top']].set_visible(False)
+            ax.margins(x=.01, y=0.)
+            pyplot.xticks(ticks=())
 
-            pyplot.title(
-                         'RSA pattern similarities',
-                         fontsize=25,
-                         fontweight='bold',
-                         )
-            pyplot.ylabel(ylabel='Spearman rho', fontsize=20)
-            pyplot.yticks(fontsize=15)
+            ##pyplot.title(
+            #             'RSA pattern similarities',
+            #             fontsize=25,
+            #             fontweight='bold',
+            #             )
+            pyplot.ylabel(ylabel='Spearman rho', fontsize=23)
+            pyplot.yticks(fontsize=20)
             pyplot.savefig(os.path.join(out, '{}_{}_{}.jpg'.format(confound_method, confound_variable, metric)))
             pyplot.clf()
             pyplot.close()

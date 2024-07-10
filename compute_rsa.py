@@ -4,6 +4,7 @@ import mne
 import numpy
 import os
 import random
+import re
 import scipy
 import sklearn
 
@@ -232,8 +233,29 @@ def run_rsa(
             confound_method,
             ):
     ### setting up some variables...
-    random.seed(12)
-    n_folds = 100
+    '''
+    for seed in [
+            5,
+            12,
+            38,
+            86,
+            115,
+            173,
+            200,
+            301,
+            315,
+            317,
+            353,
+            363,
+            440,
+            ]:
+    '''
+    #for seed in range(0, 1000):
+    #seed = 100
+    #seed = 860
+    #seed = 14
+    seed = 40
+    n_folds = 1000
     perms = 1000
     all_boots = 1000
     key = (predictor_name, target_name, metric, confound_variable, confound_method)
@@ -260,11 +282,27 @@ def run_rsa(
                 assert len(remov_abils) == 3
     confound_data = numpy.array([[full_data[d][i] for d in remov_abils] for i in range(subjects)])
     ### load predictor data
-    raw_predictor_data = numpy.array([[full_data[d][i] for d in labels[predictor_name]] for i in range(subjects)])
+    ### if difference, do the difference
+    digits = len(re.sub('\D', '', predictor_name))
+    if digits < 2:
+        raw_predictor_data = numpy.array([[full_data[d][i] for d in labels[predictor_name]] for i in range(subjects)])
+        alternatives = labels[predictor_name]
+    else:
+        pres = predictor_name[-4]
+        pres_labels = sorted(labels[predictor_name[:-5]+'T'+pres])
+        past = predictor_name[-1]
+        past_labels = sorted(labels[predictor_name[:-5]+'T'+past])
+        #pres_predictor_data = numpy.array([[full_data[d][i] for d in labels[predictor_name]] for i in range(subjects)])
+        pres_predictor_data = numpy.array([[full_data[d][i] for d in pres_labels] for i in range(subjects)])
+        past_predictor_data = numpy.array([[full_data[d][i] for d in past_labels] for i in range(subjects)])
+        raw_predictor_data = numpy.subtract(pres_predictor_data, past_predictor_data)
+        assert raw_predictor_data.shape == pres_predictor_data.shape
+        alternatives = [p[:-2]+predictor_name[-5:] for p in pres_labels]
     ### load target data
     raw_target_data = numpy.array([full_data[target_name][i] for i in range(subjects)])
     #print(raw_target_data)
     ### setting cv folds if required
+    random.seed(seed)
     if confound_method in ['raw', 'partial']:
         train_size = subjects
         test_size = subjects
@@ -290,7 +328,7 @@ def run_rsa(
                'random' : list(),
                }
     #for train_subjects, test_subjects in tqdm(folds):
-    if len(labels[predictor_name]) >= 2:
+    if len(alternatives) >= 2:
         results['removal_bootstrap'] = list()
     for train_subjects, test_subjects in folds:
         ### remove confounds from predictor (partial correlation)
@@ -331,6 +369,7 @@ def run_rsa(
         ### run bootstrap
         #print('running bootstraps...')
         #for _ in tqdm(range(boots)):
+        #random.seed(seed)
         for _ in range(boots):
             ### preparing mask
             ### 2/3 of subjects
@@ -338,6 +377,7 @@ def run_rsa(
                             range(test_size),
                             k=int((test_size/3)*2),
                             )
+            #print(rand_idxs)
             #print(rand_idxs)
             mask_idxs = [True if i in rand_idxs else False for i in range(test_size)]
             mask = [True if i==True and j==True else False for i_i, i in enumerate(mask_idxs) for i_j, j in enumerate(mask_idxs) if i_j>i_i]
@@ -353,6 +393,7 @@ def run_rsa(
         ### run random
         #print('running monte carlo randomizations...')
         #for _ in tqdm(range(randoms)):
+        rng = numpy.random.default_rng(seed=seed)
         for _ in range(randoms):
             ### run first-level on randomized targets
             '''
@@ -367,7 +408,6 @@ def run_rsa(
                                          randomize=True
                                          )
             '''
-            rng = numpy.random.default_rng()
             rand_target_sims = target_sims.copy()
             rng.shuffle(rand_target_sims, axis=0)
             ### run randomized second level
@@ -378,19 +418,30 @@ def run_rsa(
                                          )
             results['random'].append(rand_corr)
         ### running bootstraps with removal...
+        #random.seed(seed)
         for _ in range(randoms):
             ### seven items with replacement
-            alternatives = len(labels[predictor_name])
-            if alternatives < 2:
+            if len(alternatives) < 2:
                 continue
-            fixed = 4
+            #print(alternatives)
+            #fixed = 5
+            fixed = len(alternatives)
+            #rand_idxs = random.sample(
+            #rand_idxs = random.choices(
+            #                          range(len(alternatives)),
+            #                          #k=random.choice(range(1, alternatives))
+            #                          k=random.choice(range(1, fixed))
+            #                          #k=3,
+            #                          #k=fixed,
+            #                          )
             #rand_idxs = random.sample(
             rand_idxs = random.choices(
-                                      range(alternatives),
+                                      range(len(alternatives)),
                                       #k=random.choice(range(1, alternatives))
                                       k=random.choice(range(1, fixed))
                                       )
-            present_labels = list(set([labels[predictor_name][i] for i in rand_idxs]))
+            present_labels = list(set([alternatives[i] for i in rand_idxs]))
+            #print(present_labels)
             rand_predictor_data = list()
             for d in predictor_data:
                 lst = d.tolist()
@@ -410,7 +461,7 @@ def run_rsa(
                                          )
             #print(boot_corr)
             results['removal_bootstrap'].append('+'.join(present_labels)+':{}'.format(boot_corr))
-    if alternatives >= 2:
+    if len(alternatives) >= 2:
         assert len(results['removal_bootstrap']) == perms
     assert len(results['bootstrap']) == all_boots
     assert len(results['random']) == perms
@@ -418,6 +469,10 @@ def run_rsa(
     avg = numpy.nanmean(results['real'])
     uncorr_p = (sum([1 for _ in results['random'] if _>avg])+1)/(len(results['random'])+1)
     results['raw_permutation_p'] = [uncorr_p]
+    avg = numpy.nanmean(results['real'])
+    avg_rand = numpy.nanmean(results['random'])
+    print(seed)
+    print([key, avg, avg_rand, results['raw_permutation_p']])
 
     return (key, results)
 
@@ -439,6 +494,8 @@ with open('zz.tsv') as i:
             if val == '':
                 raw_data[d].append(numpy.nan)
             else:
+                #if len(d) == 2:
+                #    val = 1.-float(val)
                 raw_data[d].append(float(val))
 ### z scoring
 #data = {k : [(val-numpy.average(v))/numpy.std(v) for val in v] for k, v in raw_data.items()}
@@ -501,6 +558,13 @@ labels['activations T2'] = [k for k in full_data.keys() if \
                                           '_to_' not in k and \
                                           'T2' in k\
                                           ]
+labels['activations T3'] = [k for k in full_data.keys() if \
+                                          k not in abilities and \
+                                          k not in improvements and \
+                                          k not in lesions and \
+                                          '_to_' not in k and \
+                                          'T3' in k\
+                                          ]
 labels['connectivity T1'] = [k for k in full_data.keys() if \
                                           k not in abilities and \
                                           k not in improvements and \
@@ -515,20 +579,35 @@ labels['connectivity T2'] = [k for k in full_data.keys() if \
                                            '_to_' in k and \
                                            'T2' in k\
                                            ]
+labels['connectivity T3'] = [k for k in full_data.keys() if \
+                                           k not in abilities and \
+                                           k not in improvements and \
+                                           k not in lesions and \
+                                           '_to_' in k and \
+                                           'T3' in k\
+                                           ]
 ### targets
 targets = [v for v in abilities+improvements]
 ### predictors
 predictors = [
-              #'age',
-              #'T1',
-              #'T2',
-              #'T3',
+              'age',
+              'T1',
+              'T2',
+              'T3',
               #'abilities',
-              #'lesions',
-              #'activations T1',
-              #'activations T2',
-              #'connectivity T1',
+              'lesions',
+              'activations T1',
+              'activations T2',
+              #'activations T3',
+              #'activations T2-T1',
+              #'activations T3-T2',
+              #'activations T3-T1',
+              'connectivity T1',
               'connectivity T2',
+              #'connectivity T3',
+              #'connectivity T2-T1',
+              #'connectivity T3-T2',
+              #'connectivity T3-T1',
               ]
 
 ### various setups...
@@ -555,6 +634,14 @@ all_results = dict()
 for predictor_name in predictors:
     for target_name in targets:
         if target_name == predictor_name:
+            continue
+        #if target_name not in ['T2']:
+        #    continue
+        #if target_name not in ['T2', 'T3']:
+        #    continue
+        pred_digits = re.sub('\D', '', predictor_name)
+        targ_digits = re.sub('\D', '', target_name)
+        if len(pred_digits) == 2 and pred_digits!=targ_digits:
             continue
         for metric in metrics:
             for confound_variable in confound_variables:

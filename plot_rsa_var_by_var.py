@@ -11,7 +11,7 @@ from scipy import stats
 from tqdm import tqdm
 
 # Using Helvetica as a font
-font_folder = 'fonts/'
+font_folder = '../fonts/'
 font_dirs = [font_folder, ]
 font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
 for p in font_files:
@@ -121,7 +121,7 @@ for metric in possibilities['metric']:
             if confound_method != 'raw' and confound_variable == 'none':
                 continue
             cases = list()
-            in_f = os.path.join('rsa_zz', confound_method, confound_variable)
+            in_f = os.path.join('rsa_zz', confound_method, confound_variable, metric)
             with open(os.path.join(in_f, '{}_{}_{}.results'.format(metric, confound_method, confound_variable))) as i:
                 for l_i, l in enumerate(i):
                     if l_i == 0:
@@ -288,7 +288,15 @@ for metric in possibilities['metric']:
                     print(xs)
                     assert len(xs) > 2
                     ### creating the folder
-                    out = os.path.join('rsa_zz', confound_method, confound_variable, 'individual_variables', target, group)
+                    out = os.path.join(
+                                       'rsa_zz',
+                                       confound_method,
+                                       confound_variable,
+                                       metric,
+                                       'individual_variables',
+                                       target,
+                                       group,
+                                       )
                     os.makedirs(out, exist_ok=True)
                     for k in ['act', 'les', 'conn']:
                         if k in group:

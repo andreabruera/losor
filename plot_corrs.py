@@ -39,7 +39,10 @@ with open('zz.tsv') as i:
             #raw_data = {h : list() for h in header[2:]}
             continue
         for d in raw_data.keys():
-            raw_data[d].append(float(line[corr_header.index(d)].replace(',', '.')))
+            val = float(line[corr_header.index(d)].replace(',', '.'))
+            if len(d) == 2:
+                val = 1.-float(val)
+            raw_data[d].append(val)
 data = {k : v for k, v in raw_data.items()}
 
 abilities = ['T1', 'T2', 'T3']
@@ -66,7 +69,10 @@ models = [
         ]
 out = 'corrs'
 
-for mode in ['raw', 'cv-confound_lesions']:
+for mode in [
+             'raw',
+             #'cv-confound_lesions',
+             ]:
     for ab in abilities+improvements:
         curr_out = os.path.join(out, mode, ab)
         os.makedirs(curr_out, exist_ok=True)
@@ -98,6 +104,17 @@ for mode in ['raw', 'cv-confound_lesions']:
                     ys = [numpy.average(all_ys[k]) for k in sorted(all_ys.keys())]
 
                 xs = data[dim]
+                '''
+                if len(ab) > 2:
+                    if 'T1' in dim or 'T2' in dim:
+                        ### subtracting...
+                        t_pres = 'T{}'.format(ab[1])
+                        xs_pres = data[dim[:-2]+t_pres]
+                        t_past = 'T{}'.format(ab[4])
+                        xs_past = data[dim[:-2]+t_past]
+                        xs = [pres-past for pres, past in zip(xs_pres, xs_past)]
+                '''
+
                 model = sklearn.linear_model.LinearRegression().fit(
                                                         [[x] for x in xs],
                                                         [[y] for y in ys],
