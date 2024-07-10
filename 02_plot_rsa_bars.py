@@ -10,15 +10,16 @@ from scipy import stats
 
 # Using Helvetica as a font
 font_folder = '../fonts/'
-font_dirs = [font_folder, ]
-font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
-for p in font_files:
-    font_manager.fontManager.addfont(p)
-matplotlib.rcParams['font.family'] = 'Helvetica LT Std'
+if os.path.exists(font_folder):
+    font_dirs = [font_folder, ]
+    font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
+    for p in font_files:
+        font_manager.fontManager.addfont(p)
+    matplotlib.rcParams['font.family'] = 'Helvetica LT Std'
 
-#with open('zz_results.tsv') as i:
+#with open('_results.tsv') as i:
 results = dict()
-for root, direc, fz in os.walk('rsa_results_zz'):
+for root, direc, fz in os.walk('rsa_results'):
     for f in fz:
         #print(f)
         if 'tsv' not in f:
@@ -74,7 +75,7 @@ for metric in possibilities['metric']:
             if confound_method != 'raw' and confound_variable == 'none':
                 continue
             ### creating the folder
-            out = os.path.join('rsa_zz', confound_method, confound_variable, metric)
+            out = os.path.join('rsa_plots', confound_method, confound_variable, metric)
             os.makedirs(out, exist_ok=True)
             ### collecting the data and p_values for correction
             rel_idxs = [i for i in range(n_items) if results['metric'][i]==metric and \

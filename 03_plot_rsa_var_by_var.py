@@ -12,11 +12,12 @@ from tqdm import tqdm
 
 # Using Helvetica as a font
 font_folder = '../fonts/'
-font_dirs = [font_folder, ]
-font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
-for p in font_files:
-    font_manager.fontManager.addfont(p)
-matplotlib.rcParams['font.family'] = 'Helvetica LT Std'
+if os.path.exists(font_folder):
+    font_dirs = [font_folder, ]
+    font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
+    for p in font_files:
+        font_manager.fontManager.addfont(p)
+    matplotlib.rcParams['font.family'] = 'Helvetica LT Std'
 
 all_colors = {
           'act' : [
@@ -46,9 +47,9 @@ all_colors = {
                    ],
           }
 
-#with open('zz_results.tsv') as i:
+#with open('z_results.tsv') as i:
 results = dict()
-for root, direc, fz in os.walk('rsa_results_zz'):
+for root, direc, fz in os.walk('rsa_results'):
     for f in fz:
         #print(f)
         if 'tsv' not in f:
@@ -121,7 +122,7 @@ for metric in possibilities['metric']:
             if confound_method != 'raw' and confound_variable == 'none':
                 continue
             cases = list()
-            in_f = os.path.join('rsa_zz', confound_method, confound_variable, metric)
+            in_f = os.path.join('rsa_plots', confound_method, confound_variable, metric)
             with open(os.path.join(in_f, '{}_{}_{}.results'.format(metric, confound_method, confound_variable))) as i:
                 for l_i, l in enumerate(i):
                     if l_i == 0:
@@ -292,7 +293,7 @@ for metric in possibilities['metric']:
                     assert len(xs) > 2
                     ### creating the folder
                     out = os.path.join(
-                                       'rsa_zz',
+                                       'rsa_plots',
                                        confound_method,
                                        confound_variable,
                                        metric,

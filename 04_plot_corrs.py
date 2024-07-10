@@ -15,13 +15,14 @@ from tqdm import tqdm
 
 # Using Helvetica as a font
 font_folder = '../fonts/'
-font_dirs = [font_folder, ]
-font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
-for p in font_files:
-    font_manager.fontManager.addfont(p)
-matplotlib.rcParams['font.family'] = 'Helvetica LT Std'
+if os.path.exists(font_folder):
+    font_dirs = [font_folder, ]
+    font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
+    for p in font_files:
+        font_manager.fontManager.addfont(p)
+    matplotlib.rcParams['font.family'] = 'Helvetica LT Std'
 
-with open('zz.tsv') as i:
+with open(os.path.join('dataset', 'data_41.tsv')) as i:
     for l_i, l in enumerate(i):
         line = l.strip().split('\t')
         if l_i == 0:
@@ -67,7 +68,7 @@ models = [
         ('connectivity T1', conn_t1),
         ('connectivity T2', conn_t2),
         ]
-out = 'corrs'
+out = 'raw_corrs_plots'
 
 for mode in [
              'raw',
