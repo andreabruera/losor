@@ -73,14 +73,14 @@ colors=['white', 'mediumseagreen', 'white',  'goldenrod', 'white', 'mediumviolet
 pers_cmap = LinearSegmentedColormap.from_list("mycmap", colors)
 cmaps = [
          #pers_cmap,
-         'cividis',
+         #'cividis',
          'YlOrBr',
-         'coolwarm',
+         #'coolwarm',
          ]
 
 ### reading results
 for cmap in cmaps:
-    for root, direc, fz in os.walk('rsa_zz/cv-confound/lesions/'):
+    for root, direc, fz in os.walk('rsa_plots/'):
         if 'individual' not in root:
             continue
         for f in fz:
@@ -109,6 +109,7 @@ for cmap in cmaps:
                     vmax=0.3
                 else:
                     vmax=0.2
+                vmax = 0.3
                 #vmin=min(avgs.values())
                 vmin=0.
                 print(avgs)
@@ -125,7 +126,7 @@ for cmap in cmaps:
                     for view in [
                                  #'dorsal',
                                  'lateral',
-                                 'ventral',
+                                 #'ventral',
                                  #'anterior',
                                  ]:
                         #for view in [[20, 180]]:
