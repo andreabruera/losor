@@ -74,7 +74,6 @@ for root, direc, fz in os.walk('rsa_results'):
                 if 'removal_bootstrap' not in line:
                     vals = numpy.array(vals, dtype=numpy.float64)
                 else:
-                    #vals = {tuple(v.split(':')[0].split('+')) : float(v.split(':')[1]) for v in vals}
                     vals_dict = dict()
                     for v in vals:
                         key = tuple(v.split(':')[0].split('+'))
@@ -82,31 +81,9 @@ for root, direc, fz in os.walk('rsa_results'):
                         if key not in vals_dict.keys():
                             vals_dict[key] = list()
                         vals_dict[key].append(val)
-                        #vals_dict[key] = [val]
                     del vals
                     vals = {k : v for k, v in vals_dict.items()}
-                    #print(f)
-                    #print(len(vals.keys()))
-                    #assert sum([len(v) for v in vals.values()]) == 1000
                 results['values'].append(vals)
-'''
-with open('zz_results.tsv') as i:
-    for l_i, l in enumerate(i):
-        line = l.strip().split('\t')
-        if l_i == 0:
-            header = [h for h in line]
-            results = {h : list() for h in header+['values']}
-            continue
-        for h_i, h in enumerate(header):
-            results[h].append(line[h_i])
-        ### values
-        vals = line[len(header):]
-        if 'removal_bootstrap' not in line:
-            vals = numpy.array(vals, dtype=numpy.float64)
-        else:
-            vals = {tuple(v.split(':')[0].split('+')) : float(v.split(':')[1]) for v in vals}
-        results['values'].append(vals)
-'''
 n_items = set([len(v) for v in results.values()])
 assert len(n_items) == 1
 n_items = list(n_items)[0]
@@ -123,7 +100,7 @@ for metric in possibilities['metric']:
                 continue
             cases = list()
             in_f = os.path.join('rsa_plots', confound_method, confound_variable, metric)
-            with open(os.path.join(in_f, '{}_{}_{}.results'.format(metric, confound_method, confound_variable))) as i:
+            with open(os.path.join(in_f, '{}_{}_{}_results.tsv'.format(metric, confound_method, confound_variable))) as i:
                 for l_i, l in enumerate(i):
                     if l_i == 0:
                         continue
@@ -181,17 +158,18 @@ for metric in possibilities['metric']:
                                     continue
                                 data_one = c_pred_data[c_one]
                                 data_two = c_pred_data[c_two]
+                                ### quicker:t-test
+                                '''
+                                if numpy.nanmean(data_one) > numpy.nanmean(data_two):
+                                    alt = 'greater'
+                                else:
+                                    alt = 'less'
+                                raw_p = scipy.stats.ttest_ind(data_one, data_two, alternative=alt).pvalue
+                                '''
+                                ### permutation test
                                 ### real mean
                                 avg_one = numpy.nanmean(data_one)
                                 avg_two = numpy.nanmean(data_two)
-                                '''
-                                using t-test
-                                if avg_one >= avg_two:
-                                    alternative='greater'
-                                if avg_one < avg_two:
-                                    alternative='less'
-                                raw_p = scipy.stats.ttest_ind(data_one, data_two, alternative=alternative).pvalue
-                                '''
                                 ### permuting
                                 full_set = data_one + data_two
                                 if avg_one > avg_two:
@@ -200,9 +178,6 @@ for metric in possibilities['metric']:
                                     real = avg_two-avg_one
                                 fakes = list()
                                 for _ in range(1000):
-                                    #fake_one = random.sample(full_set, k=len(data_one))
-                                    #fake_two = random.sample(full_set, k=len(data_two))
-                                    #fake_two =
                                     fake_one_idxs = random.sample(range(len(full_set)), k=len(data_one))
                                     fake_one = [full_set[i] for i in fake_one_idxs]
                                     fake_two = [full_set[i] for i in range(len(full_set)) if i not in fake_one_idxs]
@@ -224,8 +199,11 @@ for metric in possibilities['metric']:
                 if p< 0.05:
                     print([k, p])
                 current_data[k[0]][k[1]][tuple(sorted((k[2], k[3])))]['corr_p'] = p
+            ### variables other than lesions
             for target, t_data in current_data.items():
                 for group, g_data in t_data.items():
+                    if group == 'lesions':
+                        continue
                     fig, ax = pyplot.subplots(
                                               constrained_layout=True,
                                               figsize=(20, 10),
@@ -277,18 +255,6 @@ for metric in possibilities['metric']:
                                 fontweight='bold',
                                 ha='center',
                                 )
-                        '''
-                        pyplot.xticks(
-                                  ticks=[
-                                         ((len(dlpfc)+len(sma))/2)-1,
-                                         ((len(dlpfc)+len(sma))+((len(sma)+len(ptl))/2))-1,
-                                        ],
-                                  labels=['domain-general', 'language-specific'],
-                                  fontweight='bold',
-                                  fontsize=23,
-                                  )
-                        '''
-
                     print(xs)
                     assert len(xs) > 2
                     ### creating the folder
@@ -322,7 +288,6 @@ for metric in possibilities['metric']:
                                ys[x],
                                color=colors[x]
                                )
-                        #plot_boot = g_data[xs[x]][random.sample(range(len(g_data[xs[x]])), k=int(len(g_data[xs[x]])/1))]
                         plot_boot = g_data[xs[x]]
                         ax.scatter(
                                 [(x+random.choice(range(-360,360))*0.001) for _ in plot_boot],
@@ -352,15 +317,6 @@ for metric in possibilities['metric']:
                                 va='top',
                                 ha='center',
                                 )
-
-                    #pyplot.xticks(
-                    #            ticks=range(len(xs)),
-                    #            #labels=[x.replace('_', '\n') for x in xs],
-                    #            labels=edited_xticks,
-                    #            fontsize=23,
-                    #            fontweight='bold'
-                    #            )
-
                     pyplot.ylabel(ylabel='Spearman rho',
                                   fontsize=23,
                                   #loc='top',
@@ -402,19 +358,6 @@ for metric in possibilities['metric']:
                                            color=colors[i],
                                            zorder=3,
                                            )
-                    '''
-                    legend_xs = numpy.linspace(len(xs)/2-len(xs)/3, ((len(xs))-1)/2+((len(xs))-1)/3, 3)
-                    ax.scatter(legend_xs[0]-.1, 0.305, marker='s', s=100, color='white', edgecolor='black')
-                    ax.text(s='p<0.05', x=legend_xs[0], y=0.305, fontsize=20, ha='left', va='center')
-                    ax.scatter(legend_xs[1]-.1, 0.305, marker='s', s=100, color='white', edgecolor='black')
-                    ax.scatter(legend_xs[1]-.2, 0.305, marker='s', s=100, color='white', edgecolor='black')
-                    ax.text(s='p<0.005', x=legend_xs[1], y=0.305, fontsize=20, ha='left', va='center')
-                    ax.scatter(legend_xs[2]-.3, 0.305, marker='s', s=100, color='white', edgecolor='black')
-                    ax.scatter(legend_xs[2]-.2, 0.305, marker='s', s=100, color='white', edgecolor='black')
-                    ax.scatter(legend_xs[2]-.1, 0.305, marker='s', s=100, color='white', edgecolor='black')
-                    ax.text(s='p<0.005', x=legend_xs[2], y=0.305, fontsize=20, ha='left', va='center')
-                    '''
-
                     if 'conn' in group:
                         xpos=-.8
                         y=-((len(xs)*1.5)/2)*0.013
@@ -425,11 +368,8 @@ for metric in possibilities['metric']:
                         xpos=-.5
                         y=-((len(xs)*2.5)/2)*0.013
                     ax.text(
-                            #x=-(len(xs)*0.09),
                             x=xpos,
                             y=y,
-                            #y=-((len(xs)*1.5)/2)*0.013,
-                            #s='statistical\nsignificance',
                             s='significant\ncomparisons',
                             fontsize=20,
                             rotation=90,
@@ -440,7 +380,7 @@ for metric in possibilities['metric']:
                             ticks=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
                                 fontsize=20,
                                 )
-                    marker = 'Ability at' if '_' not in target else 'Improvement between'
+                    marker = 'Ability at' if '-' not in target else 'Improvement between'
                     pyplot.title(
                                  '{} {}\n\n'\
                                  'Contribution of individual {} '\
@@ -455,7 +395,7 @@ for metric in possibilities['metric']:
                     pyplot.savefig(os.path.join(out, '{}_{}.jpg'.format(target, group)))
                     pyplot.clf()
                     pyplot.close()
-                    with open(os.path.join(out, '{}_{}.results'.format(target, group)), 'w') as o:
+                    with open(os.path.join(out, '{}_{}_results.tsv'.format(target, group)), 'w') as o:
                         o.write('predictor_one\tpredictor_two\t')
                         o.write('average_corr_one\taverage_corr_two\t')
                         o.write('raw_permutation_p\tfdr_corrected_p\n')
@@ -467,3 +407,197 @@ for metric in possibilities['metric']:
                                 o.write('{}\t{}\t'.format(ys[x_i], ys[x_two_i]))
                                 o.write('{}\t'.format(g_data[tuple(sorted([x, x_two]))]['raw_permutation_p']))
                                 o.write('{}\n'.format(g_data[tuple(sorted([x, x_two]))]['corr_p']))
+            ### lesions
+            ### here we have only one plot for abilities/improvements
+            order = {
+                     'abilities' : ['T1', 'T2', 'T3'],
+                     'improvements' : ['T2-T1', 'T3-T2', 'T3-T1'],
+                     }
+            for case_marker in ['abilities', 'improvements']:
+                xs = dict()
+                for target, t_data in current_data.items():
+                    if case_marker == 'improvements' and '-' not in target:
+                        continue
+                    elif case_marker == 'abilities' and '-' in target:
+                        continue
+                    for group, g_data in t_data.items():
+                        if group != 'lesions':
+                            continue
+                        if type(group) == tuple:
+                            continue
+                        xs[target] = g_data
+                print(xs.keys())
+                for k in order[case_marker]:
+                    assert k in xs.keys()
+
+                fig, ax = pyplot.subplots(
+                                          constrained_layout=True,
+                                          figsize=(20, 10),
+                                          )
+                ax.spines[['left', 'right', 'bottom', 'top']].set_visible(False)
+                ax.margins(x=.01, y=0.)
+                pyplot.xticks(ticks=())
+                assert len(xs.keys()) == 3
+                ### creating the folder
+                out = os.path.join(
+                                   'rsa_plots',
+                                   confound_method,
+                                   confound_variable,
+                                   metric,
+                                   'individual_variables',
+                                   'lesions',
+                                   case_marker,
+                                   )
+                os.makedirs(out, exist_ok=True)
+                colors = all_colors['les']
+                ax.set_ylim(bottom=-(3*2.)*0.013, top=.32)
+                ax.hlines(
+                          y=[0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
+                          xmin=-.4,
+                          xmax=len(xs)-.6,
+                          alpha=0.2,
+                          linestyles='--',
+                          color='gray',
+                          )
+                #for correction, vals in enumerate(xs.items()):
+                for correction, target in enumerate(order[case_marker]):
+                    data = {k : v for k, v in xs[target].items() if type(k)!=tuple}
+                    ys = [numpy.nanmean(data[x]) for x in sorted(data.keys())]
+                    curr_xs = [-0.3, 0, .3]
+                    #for x in range(len(ys)):
+                    for x_i, x in enumerate(curr_xs):
+                        key = sorted(data.keys())[x_i]
+                        ax.bar(
+                               x+correction,
+                               ys[x_i],
+                               color=colors[x_i],
+                               width=0.25
+                               )
+                        #plot_boot = g_data[xs[x]]
+                        plot_boot = current_data[target]['lesions'][key]
+                        ax.scatter(
+                                [(x+correction+random.choice(range(-100,100))*0.001) for _ in plot_boot],
+                                plot_boot,
+                                alpha=0.2,
+                                edgecolors=colors[x_i],
+                                color='white',
+                                zorder=2.5,
+                                )
+                        for j in range(len(ys)):
+                            if x_i == j:
+                                continue
+                            p_key_two = sorted(data.keys())[j]
+                            p = current_data[target]['lesions'][tuple(sorted((key, p_key_two)))]['corr_p']
+                            #if numpy.nanmean(ys[x_i]) < numpy.nanmean(ys[j]):
+                            #    continue
+                            if p < p_thr*0.01:
+                                corrs = [-.05, 0, .05]
+                            elif p < p_thr*0.1:
+                                corrs = [-.05, .05]
+                            elif p < p_thr:
+                                #if p < p_thr:
+                                corrs = [0]
+                            else:
+                                corrs = []
+                            #if len(corrs)>0:
+                            #    print([p, corrs])
+                            for _ in corrs:
+                                if ys[x_i]>ys[j]:
+                                    ax.scatter(
+                                           correction+x+_,
+                                           -(3+j)*0.013,
+                                           marker='s',
+                                           s=100,
+                                           color=colors[j],
+                                           zorder=3,
+                                           )
+                                else:
+                                    continue
+                                    ax.scatter(
+                                           correction+curr_xs[j]+_,
+                                           -(3+x_i)*0.013,
+                                           marker='s',
+                                           s=100,
+                                           color=colors[x_i],
+                                           zorder=3,
+                                           )
+                edited_xticks = list()
+                for x in order[case_marker]:
+                    var = re.sub('^l|^L_', 'left ', x)
+                    var = re.sub('^r|^R_', 'right ', var)
+                    var = re.sub('_r', '_right ', var)
+                    var = re.sub('_l', '_left ', var)
+                    var = var.replace('_', '\n')
+                    edited_xticks.append(var)
+                for x_i, x in enumerate(edited_xticks):
+                    ax.text(
+                            x=x_i,
+                            y=-(5+len(xs))*0.013,
+                            #y=0,
+                            #y=-(len(xs)*0.01),
+                            s=x,
+                            fontsize=30,
+                            fontweight='bold',
+                            va='top',
+                            ha='center',
+                            )
+                pyplot.ylabel(ylabel='Spearman rho',
+                              fontsize=23,
+                              #loc='top',
+                              y=.75,
+                              #va='center',
+                              )
+                ax.vlines(
+                          x=[.5, 1.5,],
+                          ymin=-(3*2.1)*0.013,
+                          ymax=.3,
+                          linestyles='dotted',
+                          color='black',
+                          linewidth=5,
+                          )
+                xpos=-.5
+                y=-((len(xs)*2.5)/2)*0.013
+                ax.text(
+                        #x=-(len(xs)*0.09),
+                        x=xpos,
+                        y=y,
+                        #y=-((len(xs)*1.5)/2)*0.013,
+                        #s='statistical\nsignificance',
+                        s='significant\ncomparisons',
+                        fontsize=20,
+                        rotation=90,
+                        va='center',
+                        )
+
+                pyplot.yticks(
+                        ticks=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
+                            fontsize=20,
+                            )
+                marker = 'Ability at' if '-' not in target else 'Improvement between'
+                pyplot.title(
+                             '{}\n\n'\
+                             'Contribution of individual lesions '\
+                             'to RSA pattern correlation'.format(
+                                 case_marker.capitalize(),
+                                 ),
+                                 fontsize=30,
+                                 fontweight='bold',
+                                 )
+                pyplot.savefig(os.path.join(out, '{}.jpg'.format(case_marker)))
+                pyplot.clf()
+                pyplot.close()
+                with open(os.path.join(out, '{}_results.tsv'.format(case_marker)), 'w') as o:
+                    o.write('target\tpredictor_one\tpredictor_two\t')
+                    o.write('average_corr_one\taverage_corr_two\t')
+                    o.write('raw_permutation_p\tfdr_corrected_p\n')
+                    for target in order[case_marker]:
+                        keys = [k for k in xs[target].keys() if type(k)!=tuple]
+                        for x_i, x in enumerate(keys):
+                            for x_two_i, x_two in enumerate(keys):
+                                if x_two_i <= x_i:
+                                    continue
+                                o.write('{}\t{}\t{}\t'.format(target, x, x_two))
+                                #o.write('{}\t{}\t'.format(ys[x_i], ys[x_two_i]))
+                                o.write('{}\t{}\t'.format(numpy.nanmean(xs[target][x]), numpy.nanmean(xs[target][x_two])))
+                                o.write('{}\t'.format(current_data[target]['lesions'][tuple(sorted([x, x_two]))]['raw_permutation_p']))
+                                o.write('{}\n'.format(current_data[target]['lesions'][tuple(sorted([x, x_two]))]['corr_p']))
