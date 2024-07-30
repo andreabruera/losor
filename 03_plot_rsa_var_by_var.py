@@ -24,7 +24,7 @@ all_colors = {
                    'lightpink',
                    'forestgreen',
                    'steelblue',
-                   'khaki',
+                   'olive',
                    'paleturquoise',
                    'mediumvioletred',
                    ],
@@ -34,16 +34,19 @@ all_colors = {
                    'forestgreen',
                    'mediumblue',
                    'palegoldenrod',
-                   'darkkhaki',
+                   'khaki',
                    'palevioletred',
                    'mediumorchid',
                    'silver',
                    ],
           'les' : [
-                   'goldenrod',
-                   'mediumseagreen',
+                   'deepskyblue',
                    'palevioletred',
+                   'mediumseagreen',
+                   'darkkhaki',
+                   'chocolate',
                    'royalblue',
+                   'goldenrod',
                    ],
           }
 
@@ -159,7 +162,6 @@ for metric in possibilities['metric']:
                                 data_one = c_pred_data[c_one]
                                 data_two = c_pred_data[c_two]
                                 ### quicker:t-test
-                                '''
                                 if numpy.nanmean(data_one) > numpy.nanmean(data_two):
                                     alt = 'greater'
                                 else:
@@ -190,6 +192,7 @@ for metric in possibilities['metric']:
                                         fake = avg_fake_two-avg_fake_one
                                     fakes.append(fake)
                                 raw_p = (sum([1 for _ in fakes if _>real])+1)/(len(fakes)+1)
+                                '''
                                 current_data[c_targ][c_pred][tuple(sorted((c_one, c_two)))] = {'raw_permutation_p' : raw_p}
                                 raw_ps.append(((c_targ, c_pred, c_one, c_two), raw_p))
                                 counter.update(1)
@@ -412,8 +415,9 @@ for metric in possibilities['metric']:
             order = {
                      'abilities' : ['T1', 'T2', 'T3'],
                      'improvements' : ['T2-T1', 'T3-T2', 'T3-T1'],
+                     'both' : ['T1', 'T2', 'T3', 'T2-T1', 'T3-T2', 'T3-T1']
                      }
-            for case_marker in ['abilities', 'improvements']:
+            for case_marker in ['abilities', 'improvements', 'both']:
                 xs = dict()
                 for target, t_data in current_data.items():
                     if case_marker == 'improvements' and '-' not in target:
@@ -437,7 +441,8 @@ for metric in possibilities['metric']:
                 ax.spines[['left', 'right', 'bottom', 'top']].set_visible(False)
                 ax.margins(x=.01, y=0.)
                 pyplot.xticks(ticks=())
-                assert len(xs.keys()) == 3
+                legended = dict()
+                assert len(xs.keys()) in [3, 6]
                 ### creating the folder
                 out = os.path.join(
                                    'rsa_plots',
@@ -450,7 +455,7 @@ for metric in possibilities['metric']:
                                    )
                 os.makedirs(out, exist_ok=True)
                 colors = all_colors['les']
-                ax.set_ylim(bottom=-(3*2.)*0.013, top=.32)
+                ax.set_ylim(bottom=-(3*2.)*0.013, top=.38)
                 ax.hlines(
                           y=[0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
                           xmin=-.4,
@@ -467,10 +472,21 @@ for metric in possibilities['metric']:
                     #for x in range(len(ys)):
                     for x_i, x in enumerate(curr_xs):
                         key = sorted(data.keys())[x_i]
+                        if case_marker != 'both':
+                            color = colors[x_i]
+                        else:
+                            if correction < 3:
+                                color = colors[x_i]
+                            else:
+                                #color = colors[x_i+3]
+                                color = colors[x_i]
+                        if color not in legended.keys():
+                            ax.bar(0, 0, color=color, label=key.replace('_', ' '))
+                            legended[color] = True
                         ax.bar(
                                x+correction,
                                ys[x_i],
-                               color=colors[x_i],
+                               color=color,
                                width=0.25
                                )
                         #plot_boot = g_data[xs[x]]
@@ -479,7 +495,7 @@ for metric in possibilities['metric']:
                                 [(x+correction+random.choice(range(-100,100))*0.001) for _ in plot_boot],
                                 plot_boot,
                                 alpha=0.2,
-                                edgecolors=colors[x_i],
+                                edgecolors=color,
                                 color='white',
                                 zorder=2.5,
                                 )
@@ -503,12 +519,20 @@ for metric in possibilities['metric']:
                             #    print([p, corrs])
                             for _ in corrs:
                                 if ys[x_i]>ys[j]:
+                                    if case_marker != 'both':
+                                        other_color = colors[j]
+                                    else:
+                                        if correction < 3:
+                                            other_color = colors[j]
+                                        else:
+                                            #other_color = colors[j+3]
+                                            other_color = colors[j]
                                     ax.scatter(
                                            correction+x+_,
                                            -(3+j)*0.013,
                                            marker='s',
                                            s=100,
-                                           color=colors[j],
+                                           color=other_color,
                                            zorder=3,
                                            )
                                 else:
@@ -518,7 +542,7 @@ for metric in possibilities['metric']:
                                            -(3+x_i)*0.013,
                                            marker='s',
                                            s=100,
-                                           color=colors[x_i],
+                                           color=color,
                                            zorder=3,
                                            )
                 edited_xticks = list()
@@ -532,7 +556,7 @@ for metric in possibilities['metric']:
                 for x_i, x in enumerate(edited_xticks):
                     ax.text(
                             x=x_i,
-                            y=-(5+len(xs))*0.013,
+                            y=-(5+2)*0.013,
                             #y=0,
                             #y=-(len(xs)*0.01),
                             s=x,
@@ -541,22 +565,52 @@ for metric in possibilities['metric']:
                             va='top',
                             ha='center',
                             )
+                if case_marker == 'both':
+                    for x_m_i, x_m in enumerate((['Language ability', 'Language improvement'])):
+                        x_coord = 1 if x_m_i == 0 else 4
+                        ax.text(
+                                x=x_coord,
+                                y=.305,
+                                s=x_m,
+                                fontsize=30,
+                                fontweight='bold',
+                                va='center',
+                                ha='center',
+                                )
                 pyplot.ylabel(ylabel='Spearman rho',
                               fontsize=23,
                               #loc='top',
                               y=.75,
                               #va='center',
                               )
-                ax.vlines(
-                          x=[.5, 1.5,],
-                          ymin=-(3*2.1)*0.013,
-                          ymax=.3,
-                          linestyles='dotted',
-                          color='black',
-                          linewidth=5,
-                          )
-                xpos=-.5
-                y=-((len(xs)*2.5)/2)*0.013
+                if case_marker == 'both':
+                    ax.vlines(
+                              x=[.5, 1.5, 3.5, 4.5],
+                              ymin=-(3*2.1)*0.013,
+                              ymax=.28,
+                              linestyles='dotted',
+                              color='silver',
+                              linewidth=5,
+                              )
+                    ax.vlines(
+                              x=[2.5,],
+                              ymin=-(3*2.1)*0.013,
+                              ymax=.3,
+                              linestyles='dashed',
+                              color='black',
+                              linewidth=7,
+                              )
+                else:
+                    ax.vlines(
+                              x=[.5, 1.5,],
+                              ymin=-(3*2.1)*0.013,
+                              ymax=.3,
+                              linestyles='dotted',
+                              color='black',
+                              linewidth=5,
+                              )
+                xpos=-.68
+                y=-((3.8*2.5)/2)*0.013
                 ax.text(
                         #x=-(len(xs)*0.09),
                         x=xpos,
@@ -568,7 +622,7 @@ for metric in possibilities['metric']:
                         rotation=90,
                         va='center',
                         )
-
+                ax.legend(loc=9, fontsize=23, ncols=3)
                 pyplot.yticks(
                         ticks=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
                             fontsize=20,
