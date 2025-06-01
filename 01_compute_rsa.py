@@ -13,7 +13,6 @@ from scipy import spatial
 from sklearn import linear_model, metrics
 from tqdm import tqdm
 
-
 def remove_confound(
                     confound,
                     data,
@@ -247,6 +246,7 @@ def run_rsa(
     if confound_method == 'raw':
         remov_abils = list()
     else:
+        confound_pred_only = False
         if confound_variable == 'T-minus-one':
             remov_abils = [k for k in labels['abilities'] if int(k[-1])==int(target_name[1])-1]
             assert len(remov_abils) in [0, 1]
@@ -254,11 +254,23 @@ def run_rsa(
                 if remov_abils[0] == target_name:
                     remov_abils = list()
         if confound_variable == 'lesions':
+            ### when removing lesions, only in the target
             if predictor_name == 'lesions':
                 remov_abils = list()
             else:
                 remov_abils = labels['lesions']
                 assert len(remov_abils) == 3
+        if confound_variable == 'lesions_n_aphasia':
+            ### when removing lesions+T1, not removing it from either
+            if predictor_name in ['lesions', 'T1'] and target_name == 'T1':
+                remov_abils = list()
+            elif predictor_name in ['lesions', 'T1'] and target_name != 'T1':
+                remov_abils = labels['lesions'] + labels['T1']
+                assert len(remov_abils) == 4
+                confound_pred_only = True
+            else:
+                remov_abils = labels['lesions'] + labels['T1']
+                assert len(remov_abils) == 4
     confound_data = numpy.array([[full_data[d][i] for d in remov_abils] for i in range(subjects)])
     ### load predictor data
     ### if difference, do the difference
@@ -266,6 +278,7 @@ def run_rsa(
     if digits < 2:
         raw_predictor_data = numpy.array([[full_data[d][i] for d in labels[predictor_name]] for i in range(subjects)])
         alternatives = labels[predictor_name]
+        pres_labels = labels[predictor_name]
     else:
         pres = predictor_name[-4]
         pres_labels = sorted(labels[predictor_name[:-5]+'T'+pres])
@@ -309,8 +322,9 @@ def run_rsa(
     #for train_subjects, test_subjects in tqdm(folds):
     if len(alternatives) >= 2:
         results['removal_bootstrap'] = list()
+    cv_correlations = {l : list() for l in pres_labels}
     for train_subjects, test_subjects in folds:
-        ### remove confounds from predictor (partial correlation)
+        ### remove confounds from predictor and target (partial correlation)
         predictor_data = remove_confound(
                                           confound_data,
                                           raw_predictor_data,
@@ -318,15 +332,46 @@ def run_rsa(
                                           test_subjects,
                                           subjects,
                                           )
-        ### remove confounds from target (confound control)
         target_data = remove_confound(
-                                          confound_data,
-                                          raw_target_data,
-                                          train_subjects,
-                                          test_subjects,
-                                          subjects,
-                                          )
-        #print(target_data)
+                                      confound_data,
+                                      raw_target_data,
+                                      train_subjects,
+                                      test_subjects,
+                                      subjects,
+                                      )
+        '''
+        if len(raw_predictor_data.shape) == 1:
+            predictor_data = raw_predictor_data.reshape(-1, 1)[test_subjects, :]
+        else:
+            predictor_data = raw_predictor_data[test_subjects, :]
+        ### removing T1 from target defeats the purpose of looking at improvement
+        if len(raw_target_data.shape) == 1:
+            target_data = raw_target_data.reshape(-1, 1)[test_subjects, :]
+        else:
+            target_data = raw_target_data[test_subjects, :]
+        '''
+        ### doesn't make sense removing T1 from T1...
+        #if confound_les_only:
+        #    #target_data = raw_target_data.reshape(-1, 1)[test_subjects, :]
+        #    confound_data = confound_data[:, :-1]
+        '''
+        if 'aphasia' in confound_variable:
+            target_data = remove_confound(
+                                      confound_data[:, :-1],
+                                      raw_target_data,
+                                      train_subjects,
+                                      test_subjects,
+                                      subjects,
+                                      )
+        else:
+            target_data = remove_confound(
+                                      confound_data,
+                                      raw_target_data,
+                                      train_subjects,
+                                      test_subjects,
+                                      subjects,
+                                      )
+        '''
         ### run first-level on predictor
         predictor_sims = first_level_rsa(
                                          predictor_data,
@@ -345,6 +390,11 @@ def run_rsa(
                                      target_sims,
                                      )
         results['real'].append(real_corr)
+        ### simple correlation
+        for l_i, l in enumerate(pres_labels):
+            simple_corr = scipy.stats.spearmanr(predictor_data[:, l_i], target_data).statistic
+            cv_correlations[l].append(simple_corr)
+
         ### run bootstrap
         #print('running bootstraps...')
         #for _ in tqdm(range(boots)):
@@ -392,8 +442,9 @@ def run_rsa(
             ### run randomized second level
             rand_corr = second_level_rsa(
                                          #rand_predictor_sims,
+                                         #rand_target_sims,
                                          predictor_sims,
-                                         rand_target_sims,
+                                         rand_target_sims
                                          )
             results['random'].append(rand_corr)
         ### running bootstraps with removal...
@@ -404,7 +455,7 @@ def run_rsa(
                 continue
             #print(alternatives)
             #fixed = 5
-            fixed = len(alternatives)
+            #fixed = len(alternatives)
             #rand_idxs = random.sample(
             #rand_idxs = random.choices(
             #                          range(len(alternatives)),
@@ -416,8 +467,10 @@ def run_rsa(
             #rand_idxs = random.sample(
             rand_idxs = random.choices(
                                       range(len(alternatives)),
-                                      #k=random.choice(range(1, alternatives))
-                                      k=random.choice(range(1, fixed))
+                                      #k=random.choice(range(1, fixed))
+                                      k=random.choice(range(1, len(alternatives)))
+                                      #k=fixed
+                                      #k=len(alternatives)
                                       )
             present_labels = list(set([alternatives[i] for i in rand_idxs]))
             #print(present_labels)
@@ -453,18 +506,18 @@ def run_rsa(
     print(seed)
     print([key, avg, avg_rand, results['raw_permutation_p']])
 
-    return (key, results)
+    return (key, results, cv_correlations)
 
 ### start
+old_impros = ['T2_T1', 'T3_T2', 'T3_T1']
 
-
-with open(os.path.join('dataset', 'data_41.tsv')) as i:
+with open(os.path.join('dataset', 'data_41_corrected_improvement.tsv')) as i:
     for l_i, l in enumerate(i):
         line = l.split('\t')
         line[-1] = line[-1].strip()
         if l_i == 0:
             header = [w for w in line]
-            raw_data = {h : list() for h in header[2:] if h!='L_SMA' and 'adjusted' not in h}
+            raw_data = {h : list() for h in header[2:] if h!='L_SMA' and 'adjusted' not in h and h not in old_impros}
             continue
         for d in raw_data.keys():
             val = line[header.index(d)].replace(',', '.')
@@ -485,9 +538,9 @@ abilities = [
              'T3',
              ]
 improvements = [
-                'T2_T1',
-                'T3_T2',
-                'T3_T1',
+                'T2-T1',
+                'T3-T2',
+                'T3-T1',
                 ]
 
 age = [
@@ -605,7 +658,8 @@ confound_methods = [
                     ]
 confound_variables = [
                     #'T-minus-one',
-                    'lesions',
+                    #'lesions',
+                    'lesions_n_aphasia',
                     #'none'
                     ]
 all_results = dict()
@@ -628,7 +682,7 @@ for predictor_name in predictors:
                         continue
                     if confound_method != 'raw' and confound_variable == 'none':
                         continue
-                    key, results = run_rsa(
+                    key, results, cv_correlations = run_rsa(
                                 full_data,
                                 labels,
                                 predictor_name,
@@ -676,4 +730,39 @@ for predictor_name in predictors:
                             o.write('{}\t'.format(k))
                             for r in res:
                                 o.write('{}\t'.format(r))
+                            o.write('\n')
+                    for var, var_corrs in cv_correlations.items():
+                        with open(os.path.join(
+                                   out,
+                                  '{}_{}_{}_{}_{}_cv-correlations.tsv'.format(
+                                       var,
+                                       target_out_name,
+                                       metric,
+                                       confound_method,
+                                       confound_variable)
+                                   ), 'w') as o:
+                            o.write('variable_name\t')
+                            o.write('target_name\t')
+                            o.write('metric\t')
+                            o.write('confound_variable\t')
+                            o.write('confound_method\t')
+                            o.write('avg_corr\t')
+                            o.write('raw_two_sided_p\t')
+                            o.write('individual_corrs\n')
+                            o.write('{}\t{}\t{}\t{}\t{}\t'.format(
+                                             var,
+                                             target_out_name,
+                                             metric,
+                                             confound_variable,
+                                             confound_method,
+                                             )
+                                    )
+                            o.write('{}\t'.format(float(numpy.average(var_corrs))))
+                            ### two sided p
+                            one = sum([1 for v in var_corrs if v>0.])/len(var_corrs)
+                            two = sum([1 for v in var_corrs if v<0.])/len(var_corrs)
+                            p_val = min([one, two])*2
+                            o.write('{}\t'.format(float(p_val)))
+                            for r in var_corrs:
+                                o.write('{}\t'.format(float(r)))
                             o.write('\n')

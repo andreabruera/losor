@@ -24,6 +24,8 @@ for root, direc, fz in os.walk('rsa_results'):
         #print(f)
         if 'tsv' not in f:
             continue
+        if 'results' not in f:
+            continue
         with open(os.path.join(root, f)) as i:
             for l_i, l in enumerate(i):
                 line = l.strip().split('\t')
@@ -54,7 +56,7 @@ n_items = list(n_items)[0]
 
 possibilities = {k : set(v) for k, v in results.items() if k!='values'}
 colors_tuple = [
-                ('T1', 'yellowgreen'),
+                #('T1', 'yellowgreen'),
                 ('T2', 'pink'),
                 ('T3', 'mediumaquamarine'),
                 #('abilities', 'mediumaquamarine'),
@@ -159,7 +161,7 @@ for metric in possibilities['metric']:
             ax.text(
                     x=4,
                     y=0.72,
-                    s='Language improvement',
+                    s='Language improvement (weighted)',
                     fontsize=25,
                     ha='center',
                     va='center',
@@ -292,11 +294,11 @@ for metric in possibilities['metric']:
             ax.margins(x=.01, y=0.)
             pyplot.xticks(ticks=())
 
-            ##pyplot.title(
-            #             'RSA pattern similarities',
-            #             fontsize=25,
-            #             fontweight='bold',
-            #             )
+            pyplot.title(
+                    'Similarities after removing variance explained by: {}'.format(confound_variable).replace('_n_', ' + ').replace('_', ' '),
+                         fontsize=25,
+                         fontweight='bold',
+                         )
             pyplot.ylabel(ylabel='Spearman rho', fontsize=23)
             pyplot.yticks(fontsize=20)
             pyplot.savefig(os.path.join(out, '{}_{}_{}.jpg'.format(confound_method, confound_variable, metric)))

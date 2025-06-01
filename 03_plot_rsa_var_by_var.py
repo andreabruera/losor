@@ -57,6 +57,10 @@ for root, direc, fz in os.walk('rsa_results'):
         #print(f)
         if 'tsv' not in f:
             continue
+        if 'results' not in f:
+            continue
+        #if 'aphasia' in f:
+        #    continue
         with open(os.path.join(root, f)) as i:
             for l_i, l in enumerate(i):
                 line = l.strip().split('\t')
@@ -91,6 +95,7 @@ n_items = set([len(v) for v in results.values()])
 assert len(n_items) == 1
 n_items = list(n_items)[0]
 p_thr = 0.05
+approaching_thr = 0.1
 
 possibilities = {k : set(v) for k, v in results.items() if k!='values'}
 
@@ -103,12 +108,12 @@ for metric in possibilities['metric']:
                 continue
             cases = list()
             in_f = os.path.join('rsa_plots', confound_method, confound_variable, metric)
-            with open(os.path.join(in_f, '{}_{}_{}_results.tsv'.format(metric, confound_method, confound_variable))) as i:
+            with open(os.path.join(in_f, '{}_{}_{}.results'.format(metric, confound_method, confound_variable))) as i:
                 for l_i, l in enumerate(i):
                     if l_i == 0:
                         continue
                     line = l.strip().split('\t')
-                    if float(line[-1][:4]) <= 0.1:
+                    if float(line[-1][:4]) <= approaching_thr:
                         cases.append((line[0], line[1]))
             ### collecting the data and p_values for correction
             rel_idxs = [i for i in range(n_items) if results['metric'][i]==metric and \
@@ -127,6 +132,7 @@ for metric in possibilities['metric']:
                                      'connectivity T1',
                                      'connectivity T2',
                                      ]:
+                    print(predictor)
                     continue
                 #print(predictor)
                 target = results['target_name'][i]
@@ -430,9 +436,11 @@ for metric in possibilities['metric']:
                         if type(group) == tuple:
                             continue
                         xs[target] = g_data
-                print(xs.keys())
-                for k in order[case_marker]:
-                    assert k in xs.keys()
+                try:
+                    for k in order[case_marker]:
+                        assert k in xs.keys()
+                except AssertionError:
+                    continue
 
                 fig, ax = pyplot.subplots(
                                           constrained_layout=True,
