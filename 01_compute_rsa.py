@@ -20,39 +20,31 @@ def remove_confound(
                     test_idxs,
                     subjects,
                     ):
+    removed = True
     if len(data.shape) == 1:
-        #print(data)
-        #print(data.shape)
         data = data.reshape(-1, 1)
-        #print(data.shape)
     if confound.shape == (subjects, 0):
         ### nothing to do here...
         data_residual = data[test_idxs, :]
+        removed = False
     else:
         if len(confound.shape) == 1:
-            #print(confound.shape)
             confound = confound.reshape(-1, 1)
-            #print(confound.shape)
         assert len(confound) == len(data)
         assert len(train_idxs) > 0
         confound_shape = set([v.shape for v in confound])
         assert len(confound_shape) == 1
         ### removing variance associated with confound
         model = sklearn.linear_model.LinearRegression()
-        #print(confound.shape)
-        #print(data.shape)
-        #print(train_idxs)
         train_input = confound[train_idxs, :]
         train_target = data[train_idxs, :]
-        #print(train_input.shape)
-        #print(train_target.shape)
         model.fit(train_input, train_target)
         test_input = [confound[i] for i in test_idxs]
         pred = model.predict(test_input)
         real = [data[i] for i in test_idxs]
         data_residual = numpy.array([r-p for r, p in zip(real, pred)])
 
-    return data_residual
+    return data_residual, removed
 
 def first_level_rsa(
              data,
@@ -74,12 +66,11 @@ def first_level_rsa(
     data_size = list(data_size)[0]
     #print(data_size)
     ### forcing absolute distance for 1-dimensional vectors
-    if data_size == ():
+    if data_size == () and metric not in ['cosine', 'euclidean']:
         data = data.reshape(-1, 1)
         metric = 'euclidean'
-    if data_size == (1,):
+    if data_size == (1,) and metric not in ['cosine', 'euclidean']:
         metric = 'euclidean'
-        #data = data.reshape(data.shape[0])
     if randomize == True:
         rng = numpy.random.default_rng()
         rng.shuffle(data, axis=0)
@@ -198,14 +189,11 @@ def second_level_rsa(
              target_sims,
              metric='spearman_r',
              ):
-    #print(predictor_sims)
-    #print(target_sims)
     ### checking all's fine and square
     assert predictor_sims.shape == target_sims.shape
     ### checking there are at least 7 items (cf. Nili et al. 2014)
     min_rsa = 7
     min_len = (min_rsa*(min_rsa-1))/2
-    #print(min_len)
     assert predictor_sims.shape[0] >= min_len
     if metric == 'spearman_r':
         corr = scipy.stats.spearmanr(
@@ -219,7 +207,6 @@ def second_level_rsa(
                               target_sims,
                               nan_policy='omit',
                               ).statistic
-    #print(corr)
     return corr
 
 def run_rsa(
@@ -231,22 +218,83 @@ def run_rsa(
             confound_variable,
             confound_method,
             ):
+    print('\n')
     ### setting up some variables...
     seed = 40
     n_folds = 1000
     perms = 1000
     all_boots = 1000
     key = (predictor_name, target_name, metric, confound_variable, confound_method)
-    #print(key)
+    print(key)
     ### computing total number of subjects
     subjects = set([len(v) for v in full_data.values()])
     assert len(subjects) == 1
     subjects = list(subjects)[0]
     ### load confound data
+    final_target_name = target_name
+    abil_to_remove = list()
+    if '-' in target_name:
+        #target_remov_abils = abil_to_remove
+        final_target_name = target_name.split('-')[0]
+        abil_to_remove = list(set(['T1', target_name.split('-')[1]]))
+    ### with raw we remove nothing
     if confound_method == 'raw':
-        remov_abils = list()
-    else:
+        predictor_remov_abils = list()
+        target_remov_abils = abil_to_remove
+    elif confound_method == 'cv_partial-corr':
+        ### removing only lesion variance
+        if confound_variable == 'lesions':
+            if predictor_name == 'lesions':
+                predictor_remov_abils = list()
+                target_remov_abils = abil_to_remove
+            else:
+                predictor_remov_abils = labels['lesions']
+                target_remov_abils = labels['lesions'] + abil_to_remove
+        ### removing only language impairment variance
+        elif confound_variable == 'lang_impairment':
+            if target_name == 'T1' or predictor_name == 'T1':
+                predictor_remov_abils = list()
+                target_remov_abils = list()
+            elif 'T2' == target_name[-2:] and predictor_name == 'T2':
+                predictor_remov_abils = ['T1']
+                target_remov_abils = list(set(['T1']+abil_to_remove))
+            else:
+                predictor_remov_abils = ['T1']
+                target_remov_abils = list(set(['T1']+abil_to_remove))
+        elif confound_variable == 'mixed':
+            if target_name == 'T1' or predictor_name == 'T1':
+                if predictor_name != 'lesions':
+                    predictor_remov_abils = labels['lesions']
+                    target_remov_abils = labels['lesions']
+                else:
+                    predictor_remov_abils = list()
+                    target_remov_abils = list()
+            elif predictor_name == 'lesions':
+                predictor_remov_abils = [k for k in abil_to_remove if '1' in k]
+                target_remov_abils = abil_to_remove
+            elif 'T2' == target_name[-2:] and predictor_name == 'T2':
+                predictor_remov_abils = labels['lesions'] + [k for k in abil_to_remove if '1' in k]
+                target_remov_abils = labels['lesions'] + abil_to_remove
+            else:
+                predictor_remov_abils = labels['lesions'] + [k for k in abil_to_remove if '1' in k]
+                target_remov_abils = labels['lesions'] + abil_to_remove
+        '''
         confound_pred_only = False
+        if confound_variable == 'mixed':
+            ### improvement
+            if '-' in args.name:
+                ### when removing lesions+T1, not removing it from either
+                if predictor_name in ['lesions', 'T1'] and target_name == 'T1':
+                    remov_abils = list()
+                elif predictor_name in ['lesions', 'T1'] and target_name != 'T1':
+                    remov_abils = labels['lesions'] + abil_to_remove
+                    assert len(remov_abils) == 4
+                    confound_pred_only = True
+                else:
+                    remov_abils = labels['lesions'] + abil_to_remove
+                    assert len(remov_abils) == 4
+            ### ability
+            else:
         if confound_variable == 'T-minus-one':
             remov_abils = [k for k in labels['abilities'] if int(k[-1])==int(target_name[1])-1]
             assert len(remov_abils) in [0, 1]
@@ -271,7 +319,11 @@ def run_rsa(
             else:
                 remov_abils = labels['lesions'] + labels['T1']
                 assert len(remov_abils) == 4
-    confound_data = numpy.array([[full_data[d][i] for d in remov_abils] for i in range(subjects)])
+        '''
+    print('removed from predictors: {}'.format(predictor_remov_abils))
+    print('removed from targets: {}'.format(target_remov_abils))
+    confound_predictor_data = numpy.array([[full_data[d][i] for d in predictor_remov_abils] for i in range(subjects)])
+    confound_target_data = numpy.array([[full_data[d][i] for d in target_remov_abils] for i in range(subjects)])
     ### load predictor data
     ### if difference, do the difference
     digits = len(re.sub('\D', '', predictor_name))
@@ -291,11 +343,11 @@ def run_rsa(
         assert raw_predictor_data.shape == pres_predictor_data.shape
         alternatives = [p[:-2]+predictor_name[-5:] for p in pres_labels]
     ### load target data
-    raw_target_data = numpy.array([full_data[target_name][i] for i in range(subjects)])
+    raw_target_data = numpy.array([full_data[final_target_name][i] for i in range(subjects)])
     #print(raw_target_data)
     ### setting cv folds if required
     random.seed(seed)
-    if confound_method in ['raw', 'partial']:
+    if confound_method in ['raw']:
         train_size = subjects
         test_size = subjects
         folds = [(
@@ -325,20 +377,54 @@ def run_rsa(
     cv_correlations = {l : list() for l in pres_labels}
     for train_subjects, test_subjects in folds:
         ### remove confounds from predictor and target (partial correlation)
-        predictor_data = remove_confound(
-                                          confound_data,
+        predictor_data, removed = remove_confound(
+                                          confound_predictor_data,
                                           raw_predictor_data,
                                           train_subjects,
                                           test_subjects,
                                           subjects,
                                           )
-        target_data = remove_confound(
-                                      confound_data,
+        target_data, removed = remove_confound(
+                                      confound_target_data,
                                       raw_target_data,
                                       train_subjects,
                                       test_subjects,
                                       subjects,
                                       )
+        '''
+        if confound_method != 'raw':
+            predictor_data, removed = remove_confound(
+                                              confound_predictor_data,
+                                              raw_predictor_data,
+                                              train_subjects,
+                                              test_subjects,
+                                              subjects,
+                                              )
+            target_data, removed = remove_confound(
+                                          confound_target_data,
+                                          raw_target_data,
+                                          train_subjects,
+                                          test_subjects,
+                                          subjects,
+                                          )
+        else:
+            if len(raw_predictor_data.shape) == 1:
+                predictor_data = raw_predictor_data.reshape(-1, 1)[test_subjects, :]
+            else:
+                predictor_data = raw_predictor_data[test_subjects, :]
+            if '-' not in target_name:
+                target_data = raw_target_data.reshape(-1, 1)[test_subjects, :]
+                removed = False
+            else:
+                target_data, removed = remove_confound(
+                                          confound_data,
+                                          raw_target_data,
+                                          train_subjects,
+                                          test_subjects,
+                                          subjects,
+                                          )
+        '''
+        ### daje
         '''
         if len(raw_predictor_data.shape) == 1:
             predictor_data = raw_predictor_data.reshape(-1, 1)[test_subjects, :]
@@ -493,6 +579,8 @@ def run_rsa(
                                          )
             #print(boot_corr)
             results['removal_bootstrap'].append('+'.join(present_labels)+':{}'.format(boot_corr))
+    if removed == False:
+        print('not removed anything...')
     if len(alternatives) >= 2:
         assert len(results['removal_bootstrap']) == perms
     assert len(results['bootstrap']) == all_boots
@@ -503,21 +591,19 @@ def run_rsa(
     results['raw_permutation_p'] = [uncorr_p]
     avg = numpy.nanmean(results['real'])
     avg_rand = numpy.nanmean(results['random'])
-    print(seed)
-    print([key, avg, avg_rand, results['raw_permutation_p']])
+    #print(seed)
+    print(['avg: {}'.format(round(avg, 4)), 'random avg: {}'.format(round(avg_rand, 4)), 'p={}'.format(round(results['raw_permutation_p'][0], 4))])
 
     return (key, results, cv_correlations)
 
 ### start
-old_impros = ['T2_T1', 'T3_T2', 'T3_T1']
-
-with open(os.path.join('dataset', 'data_41_corrected_improvement.tsv')) as i:
+with open(os.path.join('dataset', 'data_41.tsv')) as i:
     for l_i, l in enumerate(i):
         line = l.split('\t')
         line[-1] = line[-1].strip()
         if l_i == 0:
             header = [w for w in line]
-            raw_data = {h : list() for h in header[2:] if h!='L_SMA' and 'adjusted' not in h and h not in old_impros}
+            raw_data = {h : list() for h in header[2:] if h!='L_SMA' and 'adjusted' not in h}
             continue
         for d in raw_data.keys():
             val = line[header.index(d)].replace(',', '.')
@@ -622,7 +708,7 @@ targets = [v for v in abilities+improvements]
 ### predictors
 predictors = [
               'age',
-              'T1',
+              #'T1',
               'T2',
               'T3',
               #'abilities',
@@ -653,24 +739,22 @@ metrics = [
 ### various ways of dealing with confound variables
 confound_methods = [
                     #'raw',
-                    #'partial',
-                    'cv-confound',
+                    'cv_partial-corr',
                     ]
 confound_variables = [
-                    #'T-minus-one',
                     #'lesions',
-                    'lesions_n_aphasia',
-                    #'none'
+                    #'lang_impairment',
+                    'mixed',
+                    #'none',
                     ]
 all_results = dict()
 for predictor_name in predictors:
     for target_name in targets:
         if target_name == predictor_name:
             continue
-        #if target_name not in ['T2']:
-        #    continue
-        #if target_name not in ['T2', 'T3']:
-        #    continue
+        if '-' in target_name:
+            if predictor_name == target_name.split('-')[0]:
+                continue
         pred_digits = re.sub('\D', '', predictor_name)
         targ_digits = re.sub('\D', '', target_name)
         if len(pred_digits) == 2 and pred_digits!=targ_digits:
@@ -693,7 +777,7 @@ for predictor_name in predictors:
                                 )
                     avg = numpy.nanmean(results['real'])
                     avg_rand = numpy.nanmean(results['random'])
-                    print([key, avg, avg_rand, results['raw_permutation_p']])
+                    #print([key, avg, avg_rand, results['raw_permutation_p']])
                     target_out_name = target_name.replace('_', '-')
                     #all_results[key] = results
                     out = os.path.join(

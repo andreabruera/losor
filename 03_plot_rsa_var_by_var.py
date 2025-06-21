@@ -113,7 +113,8 @@ for metric in possibilities['metric']:
                     if l_i == 0:
                         continue
                     line = l.strip().split('\t')
-                    if float(line[-1][:4]) <= approaching_thr:
+                    #if float(line[-1][:4]) <= approaching_thr:
+                    if float(line[-1][:4]) <= p_thr:
                         cases.append((line[0], line[1]))
             ### collecting the data and p_values for correction
             rel_idxs = [i for i in range(n_items) if results['metric'][i]==metric and \
@@ -226,7 +227,7 @@ for metric in possibilities['metric']:
                         dlpfc = sorted([k for k in g_data.keys() if type(k)!=tuple and 'DLP' in k])
                         sma = sorted([k for k in g_data.keys() if type(k)!=tuple and 'SMA' in k])
                         ptl =sorted([k for k in g_data.keys() if type(k)!=tuple and k not in dlpfc and k not in sma and 'PTL' in k])
-                        lang =sorted([k for k in g_data.keys() if type(k)!=tuple and k not in dlpfc and k not in sma and k not in ptl])
+                        lang =sorted([k for k in g_data.keys() if type(k)!=tuple and k not in dlpfc and k not in sma and k not in ptl and len(k)>5])
                         xs = dlpfc+sma+ptl+lang
                         ax.vlines(
                                   x=[len(dlpfc)+len(sma)-.5],
@@ -291,6 +292,7 @@ for metric in possibilities['metric']:
                               linestyles='--',
                               color='gray',
                               )
+                    print(xs)
                     for x in range(len(xs)):
                         ax.bar(
                                x,

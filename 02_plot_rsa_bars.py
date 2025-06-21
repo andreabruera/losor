@@ -8,6 +8,19 @@ import scipy
 from matplotlib import font_manager, pyplot
 from scipy import stats
 
+legend_mapper = {
+                 'T2' : 'Subacute\nlang. ability',
+                 'T3' : 'Chronic\nlang. ability',
+                 'activations T1' : 'Acute\nactivations',
+                 'activations T2' : 'Subacute\nactivations',
+                 #'activations T3' : 'Chronic\nactivations',
+                 'connectivity T1' : 'Acute\nconnectivity',
+                 'connectivity T2' : 'Subacute\nconnectivity',
+                 #'connectivity T3' : 'Chronic\nconnectivity',
+                 'age' : 'Age',
+                 'lesions' : 'Lesions',
+                 }
+
 # Using Helvetica as a font
 font_folder = '../fonts/'
 if os.path.exists(font_folder):
@@ -55,6 +68,7 @@ assert len(n_items) == 1
 n_items = list(n_items)[0]
 
 possibilities = {k : set(v) for k, v in results.items() if k!='values'}
+print(possibilities)
 colors_tuple = [
                 #('T1', 'yellowgreen'),
                 ('T2', 'pink'),
@@ -62,8 +76,10 @@ colors_tuple = [
                 #('abilities', 'mediumaquamarine'),
                 ('activations T1', 'khaki'),
                 ('activations T2', 'darkkhaki'),
+                #('activations T3', 'black'),
                 ('connectivity T1', 'paleturquoise'),
                 ('connectivity T2', 'lightskyblue'),
+                #('connectivity T3', 'teal'),
                 ('lesions', 'lightsalmon'),
                 ('age', 'gainsboro'),
                 ]
@@ -124,34 +140,37 @@ for metric in possibilities['metric']:
                                       figsize=(20, 10),
                                       )
             for k, v in colors_tuple:
-                ax.bar(0, 0, label=k, color=v)
+                ax.bar(0, 0, label=legend_mapper[k], color=v)
             xs_lst = ['T1', 'T2', 'T3', 'T2-T1', 'T3-T2', 'T3-T1']
+            #txt_labels = ['Acute\nphase', 'Subacute\nphase', 'Late\nphase', 'Early\nimprovement', 'Long-term\nimprovement', 'Later\nimprovement']
+            txt_labels = ['Acute', 'Subacute', 'Chronic', 'Early\nimprovement', 'Long-term\nimprovement', 'Late\nimprovement']
             #xs_lst = ['abilities', 'T2-T1', 'T3-T2', 'T3-T1']
             xs = {a : _ for _, a in enumerate(xs_lst)}
             ax.text(
-                    x=5.21,
-                    y=0.73,
+                    x=5.1,
+                    y=0.64,
                     s='p<0.05',
                     fontsize=20,
+                    va='center',
                     )
             ax.scatter(
-               5.075,
-               0.735,
+               5.05,
+               0.64,
                s=200,
                marker = '*',
                 color='white',
                 zorder=3.,
                 edgecolors='black'
                )
-            ax.text(
-                    x=5.21,
-                    y=0.69,
-                    s='p<=0.1',
-                    fontsize=20,
-                    )
+            #ax.text(
+            #        x=5.21,
+            #        y=0.69,
+            #        s='p<=0.1',
+            #        fontsize=20,
+            #        )
             ax.text(
                     x=1,
-                    y=0.72,
+                    y=0.58,
                     s='Language ability',
                     fontsize=25,
                     ha='center',
@@ -160,42 +179,38 @@ for metric in possibilities['metric']:
                     )
             ax.text(
                     x=4,
-                    y=0.72,
-                    s='Language improvement (weighted)',
+                    y=0.58,
+                    s='Language improvement',
                     fontsize=25,
                     ha='center',
                     va='center',
                     fontweight='bold'
                     )
-            pyplot.xticks(
-                          ticks = range(len(xs.keys())),
-                          labels = [x.replace('_', '-') for x in xs_lst],
-                          fontsize=23,
-                          )
             for _ in range(len(xs_lst)):
                 ax.text(
                         x=_,
                         y=-0.05,
-                        s=xs_lst[_].replace('_', '-'),
-                        fontsize=28,
+                        #s=xs_lst[_].replace('_', '-'),
+                        s=txt_labels[_],
+                        fontsize=24,
                         ha='center',
                         va='center',
                         fontweight='bold'
                         )
 
-            ax.scatter(
-               5.075,
-               0.695,
-               s=100,
-               marker = 'o',
-                color='white',
-                zorder=3.,
-                edgecolors='black'
-               )
+            #ax.scatter(
+            #   5.075,
+            #   0.695,
+            #   s=100,
+            #   marker = 'o',
+            #    color='white',
+            #    zorder=3.,
+            #    edgecolors='black'
+            #   )
             ax.hlines(
                       y=[_*0.1 for _ in range(8)],
-                      xmin=-.45,
-                      xmax=len(xs)-.45,
+                      xmin=-.39,
+                      xmax=len(xs)-.6,
                       alpha=0.2,
                       linestyles='--',
                       color='gray',
@@ -204,7 +219,7 @@ for metric in possibilities['metric']:
                       x=[_+0.5 for _ in range(3)],
                       #x=[_+2+0.5 for _ in range(len(xs))],
                       ymin=-.05,
-                      ymax=.75,
+                      ymax=.6,
                       alpha=0.2,
                       linestyles='-',
                       color='black',
@@ -212,8 +227,8 @@ for metric in possibilities['metric']:
             ax.vlines(
                       x=[2.5],
                       #x=[_+2+0.5 for _ in range(len(xs))],
-                      ymin=-.1,
-                      ymax=.75,
+                      ymin=-.05,
+                      ymax=.6,
                       linestyles='dotted',
                       color='black',
                       linewidth=5,
@@ -222,7 +237,7 @@ for metric in possibilities['metric']:
                       x=[_+0.5 for _ in range(3, 5)],
                       #x=[_+2+0.5 for _ in range(len(xs))],
                       ymin=-.05,
-                      ymax=.75,
+                      ymax=.6,
                       alpha=0.2,
                       linestyles='-',
                       color='black',
@@ -234,6 +249,8 @@ for metric in possibilities['metric']:
                 #for dim, dim_data in a_data.items():
                 for dim, _ in colors_tuple:
                     if dim not in corrections.keys():
+                        #print(dim)
+                        #print(target)
                         continue
                     if len(xs) == 7:
                         wid = 0.135
@@ -242,7 +259,7 @@ for metric in possibilities['metric']:
                     #print(target_data[dim].keys())
                     ax.bar(
                            xs[target]+corrections[dim],
-                           numpy.average(target_data[dim]['real']),
+                           numpy.nanmean(target_data[dim]['real']),
                            width=0.1,
                            color=colors[dim]
                            )
@@ -271,31 +288,32 @@ for metric in possibilities['metric']:
                             zorder=3.,
                             edgecolors='black'
                            )
-                    elif float(str(target_data[dim]['corr_p'])[:4]) <= 0.1:
-                        ax.scatter(
-                           xs[target]+corrections[dim],
-                           0.02,
-                           s=100,
-                           marker = 'o',
-                            color='white',
-                            zorder=3.,
-                            edgecolors='black'
-                           )
+                    #elif float(str(target_data[dim]['corr_p'])[:4]) <= 0.1:
+                    #    ax.scatter(
+                    #       xs[target]+corrections[dim],
+                    #       0.02,
+                    #       s=100,
+                    #       marker = 'o',
+                    #        color='white',
+                    #        zorder=3.,
+                    #        edgecolors='black'
+                    #       )
             pyplot.legend(
-                         fontsize=21,
-                         ncols=9,
-                         loc=9,
+                         fontsize=20,
+                         #fontsize=16,
+                         ncols=10,
+                         loc=2,
                          borderpad=0.2,
                          columnspacing=1.,
                          handletextpad=0.2,
                          )
-            ax.set_ylim(top=0.82, bottom=-.12)
+            ax.set_ylim(top=0.68, bottom=-.06)
             ax.spines[['right', 'bottom', 'top']].set_visible(False)
             ax.margins(x=.01, y=0.)
             pyplot.xticks(ticks=())
 
             pyplot.title(
-                    'Similarities after removing variance explained by: {}'.format(confound_variable).replace('_n_', ' + ').replace('_', ' '),
+                    'Similarities after removing variance explained by:       {}'.format(confound_variable).replace('mixed', 'lesions+acute impairment').replace('_', ' '),
                          fontsize=25,
                          fontweight='bold',
                          )

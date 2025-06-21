@@ -1,0 +1,2 @@
+variable_name	target_name	metric	confound_variable	confound_method	avg_corr	raw_two_sided_p	individual_corrs
+lDLPFC_to_lIFG_T1	T3	euclidean	none	raw	0.02600689446993127	0.0	0.02600689446993127	

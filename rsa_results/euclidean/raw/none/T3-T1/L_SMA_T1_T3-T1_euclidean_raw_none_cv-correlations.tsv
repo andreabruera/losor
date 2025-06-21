@@ -1,0 +1,2 @@
+variable_name	target_name	metric	confound_variable	confound_method	avg_corr	raw_two_sided_p	individual_corrs
+L_SMA_T1	T3-T1	euclidean	none	raw	0.34722766703958835	0.0	0.34722766703958835	
