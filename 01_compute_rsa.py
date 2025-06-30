@@ -707,21 +707,21 @@ labels['connectivity T3'] = [k for k in full_data.keys() if \
 targets = [v for v in abilities+improvements]
 ### predictors
 predictors = [
-              'age',
+              #'age',
               #'T1',
-              'T2',
-              'T3',
+              #'T2',
+              #'T3',
               #'abilities',
-              'lesions',
+              #'lesions',
               'activations T1',
               'activations T2',
-              #'activations T3',
+              'activations T3',
               #'activations T2-T1',
               #'activations T3-T2',
               #'activations T3-T1',
               'connectivity T1',
               'connectivity T2',
-              #'connectivity T3',
+              'connectivity T3',
               #'connectivity T2-T1',
               #'connectivity T3-T2',
               #'connectivity T3-T1',
@@ -752,9 +752,9 @@ for predictor_name in predictors:
     for target_name in targets:
         if target_name == predictor_name:
             continue
-        if '-' in target_name:
-            if predictor_name == target_name.split('-')[0]:
-                continue
+        #if '-' in target_name:
+        #    if predictor_name == target_name.split('-')[0]:
+        #        continue
         pred_digits = re.sub('\D', '', predictor_name)
         targ_digits = re.sub('\D', '', target_name)
         if len(pred_digits) == 2 and pred_digits!=targ_digits:
@@ -846,6 +846,8 @@ for predictor_name in predictors:
                             one = sum([1 for v in var_corrs if v>0.])/len(var_corrs)
                             two = sum([1 for v in var_corrs if v<0.])/len(var_corrs)
                             p_val = min([one, two])*2
+                            #print(p_val)
+                            assert p_val >= 0. and p_val <= 1.
                             o.write('{}\t'.format(float(p_val)))
                             for r in var_corrs:
                                 o.write('{}\t'.format(float(r)))

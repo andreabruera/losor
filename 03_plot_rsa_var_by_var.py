@@ -10,6 +10,10 @@ from matplotlib import font_manager, pyplot
 from scipy import stats
 from tqdm import tqdm
 
+xs_lst = ['T1', 'T2', 'T3', 'T2-T1', 'T3-T2', 'T3-T1']
+txt_labels = ['Acute', 'Subacute', 'Chronic', 'Early', 'Long-term', 'Late']
+xs_mapper = {_ : __ for _, __ in zip(xs_lst, txt_labels)}
+
 # Using Helvetica as a font
 font_folder = '../fonts/'
 if os.path.exists(font_folder):
@@ -24,7 +28,8 @@ all_colors = {
                    'lightpink',
                    'forestgreen',
                    'steelblue',
-                   'olive',
+                   #'olive',
+                   'khaki',
                    'paleturquoise',
                    'mediumvioletred',
                    ],
@@ -100,8 +105,14 @@ approaching_thr = 0.1
 possibilities = {k : set(v) for k, v in results.items() if k!='values'}
 
 for metric in possibilities['metric']:
+    if metric != 'euclidean':
+        continue
     for confound_method in possibilities['confound_method']:
+        if confound_method != 'cv_partial-corr':
+            continue
         for confound_variable in possibilities['confound_variable']:
+            if confound_variable != 'mixed':
+                continue
             if confound_method == 'raw' and confound_variable != 'none':
                 continue
             if confound_method != 'raw' and confound_variable == 'none':
@@ -113,8 +124,8 @@ for metric in possibilities['metric']:
                     if l_i == 0:
                         continue
                     line = l.strip().split('\t')
-                    #if float(line[-1][:4]) <= approaching_thr:
-                    if float(line[-1][:4]) <= p_thr:
+                    #if float(line[-1][:4]) <= p_thr:
+                    if float(line[-1][:4]) <= approaching_thr:
                         cases.append((line[0], line[1]))
             ### collecting the data and p_values for correction
             rel_idxs = [i for i in range(n_items) if results['metric'][i]==metric and \
@@ -130,10 +141,12 @@ for metric in possibilities['metric']:
                                      'lesions',
                                      'activations T1',
                                      'activations T2',
+                                     'activations T3',
                                      'connectivity T1',
                                      'connectivity T2',
+                                     'connectivity T3',
                                      ]:
-                    print(predictor)
+                    #print(predictor)
                     continue
                 #print(predictor)
                 target = results['target_name'][i]
@@ -168,6 +181,7 @@ for metric in possibilities['metric']:
                                     continue
                                 data_one = c_pred_data[c_one]
                                 data_two = c_pred_data[c_two]
+                                '''
                                 ### quicker:t-test
                                 if numpy.nanmean(data_one) > numpy.nanmean(data_two):
                                     alt = 'greater'
@@ -179,27 +193,20 @@ for metric in possibilities['metric']:
                                 ### real mean
                                 avg_one = numpy.nanmean(data_one)
                                 avg_two = numpy.nanmean(data_two)
+                                real = abs(avg_one-avg_two)
                                 ### permuting
                                 full_set = data_one + data_two
-                                if avg_one > avg_two:
-                                    real = avg_one-avg_two
-                                else:
-                                    real = avg_two-avg_one
                                 fakes = list()
-                                for _ in range(1000):
+                                for _ in tqdm(range((1000))):
                                     fake_one_idxs = random.sample(range(len(full_set)), k=len(data_one))
                                     fake_one = [full_set[i] for i in fake_one_idxs]
                                     fake_two = [full_set[i] for i in range(len(full_set)) if i not in fake_one_idxs]
                                     ### fake mean
                                     avg_fake_one = numpy.nanmean(fake_one)
                                     avg_fake_two = numpy.nanmean(fake_two)
-                                    if avg_one > avg_two:
-                                        fake = avg_fake_one-avg_fake_two
-                                    else:
-                                        fake = avg_fake_two-avg_fake_one
+                                    fake = abs(avg_fake_one-avg_fake_two)
                                     fakes.append(fake)
                                 raw_p = (sum([1 for _ in fakes if _>real])+1)/(len(fakes)+1)
-                                '''
                                 current_data[c_targ][c_pred][tuple(sorted((c_one, c_two)))] = {'raw_permutation_p' : raw_p}
                                 raw_ps.append(((c_targ, c_pred, c_one, c_two), raw_p))
                                 counter.update(1)
@@ -212,11 +219,12 @@ for metric in possibilities['metric']:
             ### variables other than lesions
             for target, t_data in current_data.items():
                 for group, g_data in t_data.items():
+                    legended = dict()
                     if group == 'lesions':
                         continue
                     fig, ax = pyplot.subplots(
                                               constrained_layout=True,
-                                              figsize=(20, 10),
+                                              figsize=(8, 10),
                                               )
                     ax.spines[['left', 'right', 'bottom', 'top']].set_visible(False)
                     ax.margins(x=.01, y=0.)
@@ -229,6 +237,7 @@ for metric in possibilities['metric']:
                         ptl =sorted([k for k in g_data.keys() if type(k)!=tuple and k not in dlpfc and k not in sma and 'PTL' in k])
                         lang =sorted([k for k in g_data.keys() if type(k)!=tuple and k not in dlpfc and k not in sma and k not in ptl and len(k)>5])
                         xs = dlpfc+sma+ptl+lang
+                        '''
                         ax.vlines(
                                   x=[len(dlpfc)+len(sma)-.5],
                                   #x=[_+2+0.5 for _ in range(len(xs))],
@@ -239,10 +248,12 @@ for metric in possibilities['metric']:
                                   color='black',
                                   linewidth=5,
                                   )
+                        '''
                         if 'act' in group:
                             xpos=1.
                         else:
                             xpos=2.5
+                        '''
                         ax.text(
                                 #x=((len(dlpfc)+len(sma))/2)-1,
                                 x=xpos,
@@ -252,10 +263,12 @@ for metric in possibilities['metric']:
                                 ha='center',
                                 fontweight='bold',
                                 )
+                        '''
                         if 'act' in group:
                             xpos=4.
                         else:
                             xpos=7
+                        '''
                         ax.text(
                                 #x=((len(dlpfc)+len(sma))+((len(sma)+len(ptl))/2))-1,
                                 x=xpos,
@@ -265,6 +278,7 @@ for metric in possibilities['metric']:
                                 fontweight='bold',
                                 ha='center',
                                 )
+                        '''
                     print(xs)
                     assert len(xs) > 2
                     ### creating the folder
@@ -282,10 +296,11 @@ for metric in possibilities['metric']:
                         if k in group:
                             colors = all_colors[k]
                     ys = [numpy.nanmean(g_data[x]) for x in xs]
+                    ys_errs = [numpy.std(g_data[x]) for x in xs]
                         #for x, y in zip(xs, ys):
-                    ax.set_ylim(bottom=-(len(ys)*2.)*0.013, top=.32)
+                    ax.set_ylim(bottom=-(len(ys)*2.)*0.013, top=.45)
                     ax.hlines(
-                              y=[0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
+                              y=[0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4],
                               xmin=-.4,
                               xmax=len(xs)-.6,
                               alpha=0.2,
@@ -297,25 +312,40 @@ for metric in possibilities['metric']:
                         ax.bar(
                                x,
                                ys[x],
-                               color=colors[x]
+                               color=colors[x],
+                               width=0.7,
                                )
+                        '''
+                        ax.errorbar(
+                               x,
+                               ys[x],
+                               yerr=ys_errs[x],
+                               color='gray',
+                               capsize=10.,
+                               zorder=3.,
+                               )
+                        '''
                         plot_boot = g_data[xs[x]]
                         ax.scatter(
-                                [(x+random.choice(range(-360,360))*0.001) for _ in plot_boot],
+                                [(x+random.choice(range(-360,360))*0.0006) for _ in plot_boot],
                                 plot_boot,
-                                alpha=0.2,
+                                alpha=0.15,
                                 edgecolors=colors[x],
                                 color='white',
                                 zorder=2.5,
                                 )
                     edited_xticks = list()
-                    for x in xs:
+                    for x_i, x in enumerate(xs):
                         var = re.sub('^l|^L_', 'left ', x)
                         var = re.sub('^r|^R_', 'right ', var)
                         var = re.sub('_r', '_right ', var)
                         var = re.sub('_l', '_left ', var)
                         var = var.replace('_', '\n')
                         edited_xticks.append(var)
+                        if colors[x_i] not in legended.keys():
+                            ax.bar(0, 0, color=colors[x_i], label=var[:-3])
+                            legended[colors[x_i]] = True
+                    '''
                     for x_i, x in enumerate(edited_xticks):
                         ax.text(
                                 x=x_i,
@@ -328,10 +358,11 @@ for metric in possibilities['metric']:
                                 va='top',
                                 ha='center',
                                 )
+                    '''
                     pyplot.ylabel(ylabel='Spearman rho',
-                                  fontsize=23,
+                                  fontsize=20,
                                   #loc='top',
-                                  y=.75,
+                                  y=.6,
                                   #va='center',
                                   )
                     for i in range(len(xs)):
@@ -339,6 +370,7 @@ for metric in possibilities['metric']:
                             if i <= j:
                                 continue
                             p = g_data[tuple(sorted((xs[i], xs[j])))]['corr_p']
+                            '''
                             if p < p_thr*0.01:
                                 corrs = [-.1, 0, .1]
                             elif p < p_thr*0.1:
@@ -348,25 +380,36 @@ for metric in possibilities['metric']:
                                 corrs = [0]
                             else:
                                 corrs = []
+                            '''
+                            if p < p_thr:
+                                corrs = [0]
+                            else:
+                                corrs = []
                             #if len(corrs)>0:
                             #    print([p, corrs])
                             for _ in corrs:
                                 if ys[i]>ys[j]:
                                     ax.scatter(
                                            i+_,
-                                           -(3+j)*0.013,
-                                           marker='s',
-                                           s=100,
+                                           -(1+j)*0.015,
+                                           #marker='s',
+                                           marker='*',
+                                           s=400,
                                            color=colors[j],
+                                           linewidths=1.,
+                                           edgecolors='black',
                                            zorder=3,
                                            )
                                 else:
                                     ax.scatter(
                                            j+_,
-                                           -(3+i)*0.013,
-                                           marker='s',
-                                           s=100,
+                                           -(1+i)*0.016,
+                                           #marker='s',
+                                           marker='*',
+                                           s=400,
                                            color=colors[i],
+                                           linewidths=1.,
+                                           edgecolors='black',
                                            zorder=3,
                                            )
                     if 'conn' in group:
@@ -379,31 +422,42 @@ for metric in possibilities['metric']:
                         xpos=-.5
                         y=-((len(xs)*2.5)/2)*0.013
                     ax.text(
-                            x=xpos,
-                            y=y,
+                            x=xpos-.2,
+                            y=y+0.015,
                             s='significant\ncomparisons',
-                            fontsize=20,
+                            fontsize=15,
                             rotation=90,
                             va='center',
                             )
 
                     pyplot.yticks(
-                            ticks=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
+                            ticks=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4],
                                 fontsize=20,
                                 )
                     marker = 'Ability at' if '-' not in target else 'Improvement between'
-                    pyplot.title(
-                                 '{} {}\n\n'\
-                                 'Contribution of individual {} '\
-                                 'to RSA pattern correlation'.format(
-                                     marker,
-                                     target.replace('_', '-'),
-                                     group.replace(' ', ' measures at '),
-                                     ),
-                                     fontsize=30,
-                                     fontweight='bold',
-                                     )
-                    pyplot.savefig(os.path.join(out, '{}_{}.jpg'.format(target, group)))
+                    #ax.legend(loc=9, fontsize=20, ncols=len(legended.keys()))
+                    #ax.legend(loc=9, fontsize=10)
+                    #pyplot.title(
+                    #             '{} {}\n\n'\
+                    #             'Contribution of individual {} '\
+                    #             'to RSA pattern correlation'.format(
+                    #                 marker,
+                    #                 target.replace('_', '-'),
+                    #                 group.replace(' ', ' measures at '),
+                    #                 ),
+                    #                 fontsize=30,
+                    #                 fontweight='bold',
+                    #                 )
+                    ax.text(
+                            x=(len(xs)/2)-.5,
+                            y=-(3+len(xs))*0.013,
+                            s=xs_mapper[target],
+                            fontsize=25,
+                            fontweight='bold',
+                            va='top',
+                            ha='center',
+                            )
+                    pyplot.savefig(os.path.join(out, '{}_{}.jpg'.format(target, group)), dpi=300)
                     pyplot.clf()
                     pyplot.close()
                     with open(os.path.join(out, '{}_{}_results.tsv'.format(target, group)), 'w') as o:
@@ -465,9 +519,9 @@ for metric in possibilities['metric']:
                                    )
                 os.makedirs(out, exist_ok=True)
                 colors = all_colors['les']
-                ax.set_ylim(bottom=-(3*2.)*0.013, top=.38)
+                ax.set_ylim(bottom=-(3*2.)*0.013, top=.45)
                 ax.hlines(
-                          y=[0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
+                          y=[0., 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4],
                           xmin=-.4,
                           xmax=len(xs)-.6,
                           alpha=0.2,
@@ -491,6 +545,7 @@ for metric in possibilities['metric']:
                                 #color = colors[x_i+3]
                                 color = colors[x_i]
                         if color not in legended.keys():
+                            print(color)
                             ax.bar(0, 0, color=color, label=key.replace('_', ' '))
                             legended[color] = True
                         ax.bar(
@@ -504,7 +559,7 @@ for metric in possibilities['metric']:
                         ax.scatter(
                                 [(x+correction+random.choice(range(-100,100))*0.001) for _ in plot_boot],
                                 plot_boot,
-                                alpha=0.2,
+                                alpha=0.15,
                                 edgecolors=color,
                                 color='white',
                                 zorder=2.5,
@@ -516,12 +571,18 @@ for metric in possibilities['metric']:
                             p = current_data[target]['lesions'][tuple(sorted((key, p_key_two)))]['corr_p']
                             #if numpy.nanmean(ys[x_i]) < numpy.nanmean(ys[j]):
                             #    continue
+                            '''
                             if p < p_thr*0.01:
                                 corrs = [-.05, 0, .05]
                             elif p < p_thr*0.1:
                                 corrs = [-.05, .05]
                             elif p < p_thr:
                                 #if p < p_thr:
+                                corrs = [0]
+                            else:
+                                corrs = []
+                            '''
+                            if p < p_thr:
                                 corrs = [0]
                             else:
                                 corrs = []
@@ -541,8 +602,10 @@ for metric in possibilities['metric']:
                                            correction+x+_,
                                            -(3+j)*0.013,
                                            marker='s',
-                                           s=100,
+                                           s=140,
                                            color=other_color,
+                                           linewidths=3.,
+                                           edgecolors='white',
                                            zorder=3,
                                            )
                                 else:
@@ -551,8 +614,10 @@ for metric in possibilities['metric']:
                                            correction+curr_xs[j]+_,
                                            -(3+x_i)*0.013,
                                            marker='s',
-                                           s=100,
+                                           s=140,
                                            color=color,
+                                           linewidths=3.,
+                                           edgecolors='white',
                                            zorder=3,
                                            )
                 edited_xticks = list()
@@ -569,8 +634,8 @@ for metric in possibilities['metric']:
                             y=-(5+2)*0.013,
                             #y=0,
                             #y=-(len(xs)*0.01),
-                            s=x,
-                            fontsize=30,
+                            s=xs_mapper[x],
+                            fontsize=25,
                             fontweight='bold',
                             va='top',
                             ha='center',
@@ -580,7 +645,7 @@ for metric in possibilities['metric']:
                         x_coord = 1 if x_m_i == 0 else 4
                         ax.text(
                                 x=x_coord,
-                                y=.305,
+                                y=.375,
                                 s=x_m,
                                 fontsize=30,
                                 fontweight='bold',
@@ -597,7 +662,7 @@ for metric in possibilities['metric']:
                     ax.vlines(
                               x=[.5, 1.5, 3.5, 4.5],
                               ymin=-(3*2.1)*0.013,
-                              ymax=.28,
+                              ymax=.4,
                               linestyles='dotted',
                               color='silver',
                               linewidth=5,
@@ -605,16 +670,16 @@ for metric in possibilities['metric']:
                     ax.vlines(
                               x=[2.5,],
                               ymin=-(3*2.1)*0.013,
-                              ymax=.3,
+                              ymax=.4,
                               linestyles='dashed',
                               color='black',
-                              linewidth=7,
+                              linewidth=5,
                               )
                 else:
                     ax.vlines(
                               x=[.5, 1.5,],
                               ymin=-(3*2.1)*0.013,
-                              ymax=.3,
+                              ymax=.4,
                               linestyles='dotted',
                               color='black',
                               linewidth=5,
@@ -634,17 +699,16 @@ for metric in possibilities['metric']:
                         )
                 ax.legend(loc=9, fontsize=23, ncols=3)
                 pyplot.yticks(
-                        ticks=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3],
+                        ticks=[0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4],
                             fontsize=20,
                             )
                 marker = 'Ability at' if '-' not in target else 'Improvement between'
                 pyplot.title(
-                             '{}\n\n'\
                              'Contribution of individual lesions '\
-                             'to RSA pattern correlation'.format(
+                             'to correlation with language ability and improvement'.format(
                                  case_marker.capitalize(),
                                  ),
-                                 fontsize=30,
+                                 fontsize=25,
                                  fontweight='bold',
                                  )
                 pyplot.savefig(os.path.join(out, '{}.jpg'.format(case_marker)))

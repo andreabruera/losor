@@ -9,33 +9,49 @@ from nilearn import datasets, plotting, surface
 
 fsaverage = datasets.fetch_surf_fsaverage()
 dataset = nilearn.datasets.fetch_atlas_harvard_oxford('cort-maxprob-thr25-2mm')
-dataset =nilearn.datasets.fetch_atlas_aal(version='SPM12')
+#dataset =nilearn.datasets.fetch_atlas_aal(version='SPM12')
+#maps = dataset['maps']
+#maps_data = nilearn.image.load_img(maps).get_fdata()
+#idxs = [float(v) for v in dataset['indices']]
+#labels = dataset['labels']
+#assert len(idxs) == len(labels)
 maps = dataset['maps']
-maps_data = nilearn.image.load_img(maps).get_fdata()
-idxs = [float(v) for v in dataset['indices']]
+maps_data = maps.get_fdata()
 labels = dataset['labels']
-assert len(idxs) == len(labels)
 #maps = dataset['maps']
 #maps_data = maps.get_fdata()
+'''
+'ifg' : [
+        'Frontal Orbital Cortex',
+        'Frontal_Inf_Orb_L',
+        'Frontal_Inf_Orb_R',
+        ],
+'ptl' : [
+        'Superior Temporal Gyrus, posterior division',
+        'Superior Temporal Gyrus, posterior division',
+        'Middle Temporal Gyrus, posterior division',
+        'Temporal_Sup_L', 'Temporal_Sup_R',
+        'Temporal_Mid_L', 'Temporal_Mid_R',
+        'Temporal_Inf_L', 'Temporal_Inf_R',
+          ],
+'dlpfc' : [
+          'Middle Frontal Gyrus',
+          'Frontal_Mid_L',
+          'Frontal_Mid_R'
+          ]
+'''
 rel_names = {
              'lesions' : {
                     'ifg' : [
                             'Frontal Orbital Cortex',
-                            'Frontal_Inf_Orb_L',
-                            'Frontal_Inf_Orb_R',
                             ],
                     'ptl' : [
                             'Superior Temporal Gyrus, posterior division',
                             'Superior Temporal Gyrus, posterior division',
                             'Middle Temporal Gyrus, posterior division',
-                            'Temporal_Sup_L', 'Temporal_Sup_R',
-                            'Temporal_Mid_L', 'Temporal_Mid_R',
-                            'Temporal_Inf_L', 'Temporal_Inf_R',
                               ],
                     'dlpfc' : [
                               'Middle Frontal Gyrus',
-                              'Frontal_Mid_L',
-                              'Frontal_Mid_R'
                               ]
                               },
              'activations' : {
@@ -162,7 +178,7 @@ for k, both_cmap in cmaps.items():
                                'sma',
                                ]
                     curr_vals = {
-                        'ifg' :  {'max' : .2, 'min' : 0.011},
+                        'ifg' :  {'max' : .18, 'min' : 0.02},
                         'dlpfc' : {'max' : .6, 'min' : 0.4},
                         'ptl' : {'max' : .99, 'min' : 0.8},
                              }
@@ -195,7 +211,7 @@ for k, both_cmap in cmaps.items():
                     threshold=0.01,
                     colorbar=True,
                     bg_on_data=False,
-                    bg_on_map=False,
+                    #bg_on_map=False,
                     bg_map=None,
                     darkness=0.6,
                     alpha=alpha,
@@ -243,7 +259,7 @@ for k, both_cmap in cmaps.items():
                                           fsaverage.pial_left,
                                           interpolation='nearest',
                                           radius=0.,
-                                          n_samples=1,
+                                          n_samples=160,
                     )
             l = plotting.plot_surf_stat_map(
                     fsaverage.pial_left,
@@ -253,14 +269,14 @@ for k, both_cmap in cmaps.items():
                     colorbar=True,
                     threshold=0.01,
                     bg_on_data=False,
-                    bg_on_map=False,
+                    #bg_on_map=False,
                     bg_map=None,
                     cmap=cmap,
                     view=view,
                     darkness=0.5,
                     alpha=alpha,
                     vmin=0.,
-                    vmax=1.
+                    vmax=1.,
                     )
             l.savefig(os.path.join(out, \
                         'surface_left_{}_{}.svg'.format(side, view),
